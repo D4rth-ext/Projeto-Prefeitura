@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/manutencao
+    username: manutencao
+    password: dev
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate      # o Flyway cria as tabelas; o Hibernate só confere
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+app:
+  jwt:
+    segredo: "trocar-esta-chave-depois-senao-lascou-longa-e-aleatoria-1234567890"
+    expiracao-minutos: 480
+
+server:
+  port: 8080
