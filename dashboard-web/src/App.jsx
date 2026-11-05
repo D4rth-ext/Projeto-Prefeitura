@@ -15,6 +15,7 @@ import Setores from './pages/Setores'
 import Equipamentos from './pages/Equipamentos'
 import Agenda from './pages/Agenda'
 import Backups from './pages/Backups'
+import Historico from './pages/Historico'
 
 function Layout({ children }) {
   return (
@@ -31,6 +32,7 @@ export default function App() {
       <Routes>
         <Route path="/backups" element={<RotaProtegida perfisPermitidos={[PERFIS.ADMIN, PERFIS.ATENDENTE]}><Layout><Backups /></Layout></RotaProtegida>} />
         <Route path="/agenda" element={<RotaProtegida perfisPermitidos={[PERFIS.ADMIN, PERFIS.ATENDENTE, PERFIS.TECNICO]}><Layout><Agenda /></Layout></RotaProtegida>} />
+        <Route path="/historico" element={<RotaProtegida perfisPermitidos={[PERFIS.ADMIN, PERFIS.ATENDENTE, PERFIS.TECNICO]}><Layout><Historico /></Layout></RotaProtegida>} />
         <Route path="/login" element={<Login />} />
         <Route path="/acesso-equipe" element={<Navigate to="/login" replace />} />
         <Route path="/esqueci-senha" element={<EsqueciSenha />} />

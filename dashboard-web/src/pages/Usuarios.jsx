@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { buscarUsuarios, criarUsuario, inativarUsuario } from '../api/usuarios'
+import { buscarUsuarios, criarUsuario, inativarUsuario, alterarSetorUsuario } from '../api/usuarios'
+import { buscarSetoresPublicos } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
 import { useAuth } from '../context/AuthContext'
 
@@ -25,6 +26,32 @@ export default function Usuarios() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [erroForm, setErroForm] = useState(null)
+  const [funcionario, setFuncionario] = useState(null)
+  const [setoresAtivos, setSetoresAtivos] = useState([])
+  const [novoSetor, setNovoSetor] = useState('')
+  const [ocupadoSetor, setOcupadoSetor] = useState(false)
+  const [erroSetor, setErroSetor] = useState('')
+
+  async function abrirTroca(u) {
+    setFuncionario(u); setNovoSetor(''); setSetoresAtivos([]); setErroSetor(''); setOcupadoSetor(true)
+    try {
+      const setores = await buscarSetoresPublicos()
+      setSetoresAtivos(setores.filter(s => s.id !== u.setor?.id))
+    } catch (err) { setErroSetor(mensagemDeErro(err, 'Não foi possível carregar os setores.')) }
+    finally { setOcupadoSetor(false) }
+  }
+
+  async function salvarTroca(e) {
+    e.preventDefault()
+    if (!novoSetor || ocupadoSetor) return
+    setOcupadoSetor(true); setErroSetor('')
+    try {
+      const atualizado = await alterarSetorUsuario(funcionario.id, Number(novoSetor))
+      setUsuarios(lista => lista.map(u => u.id === atualizado.id ? atualizado : u))
+      setFuncionario(null)
+    } catch (err) { setErroSetor(mensagemDeErro(err, 'Não foi possível alterar o setor.')) }
+    finally { setOcupadoSetor(false) }
+  }
 
   async function carregar() {
     setCarregando(true)
@@ -155,10 +182,24 @@ export default function Usuarios() {
         )}
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-          <button type="button" style={abaStyle(aba === 'EQUIPE')} onClick={() => setAba('EQUIPE')}>Equipe</button>
+          <button type="button" style={abaStyle(aba === 'EQUIPE')} disabled={ocupadoSetor} onClick={() => { setAba('EQUIPE'); setFuncionario(null) }}>Equipe</button>
           <button type="button" style={abaStyle(aba === 'FUNCIONARIOS')} onClick={() => setAba('FUNCIONARIOS')}>Funcionários</button>
         </div>
 
+        {aba === 'FUNCIONARIOS' && funcionario && <form className="card form-stack" onSubmit={salvarTroca}>
+          <h2>Alterar setor de {funcionario.nome}</h2>
+          <p>Setor atual: {funcionario.setor?.nome || 'Não informado'}. A mudança vale para novos chamados.</p>
+          <div className="field">
+            <label htmlFor="novo-setor-funcionario">Novo setor</label>
+            <select id="novo-setor-funcionario" required disabled={ocupadoSetor} value={novoSetor} onChange={e => setNovoSetor(e.target.value)}>
+              <option value="">Selecione um setor ativo</option>
+              {setoresAtivos.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}
+            </select>
+          </div>
+          {erroSetor && <p className="erro" role="alert">{erroSetor}</p>}
+          {!ocupadoSetor && !erroSetor && !setoresAtivos.length && <p>Nenhum outro setor ativo disponível.</p>}
+          <div className="actions"><button className="btn-primary" disabled={ocupadoSetor || !novoSetor}>Salvar setor</button><button type="button" className="btn-secondary" disabled={ocupadoSetor} onClick={() => setFuncionario(null)}>Cancelar</button></div>
+        </form>}
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           {carregando && <p style={{ padding: 18, color: 'var(--text-secondary)' }}>Carregando...</p>}
           {erro && <p style={{ padding: 18, color: 'var(--red)' }}>{erro}</p>}
@@ -192,6 +233,7 @@ export default function Usuarios() {
                           <span className={`badge ${u.ativo ? 'badge-finalizado' : 'badge-entregue'}`}>{u.ativo ? 'Ativo' : 'Excluído'}</span>
                         </td>
                         <td style={{ ...celula, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {u.ativo && u.perfil === 'SOLICITANTE' && <button type="button" className="btn-secondary" disabled={ocupadoSetor} onClick={() => abrirTroca(u)}>Alterar setor</button>}
                           {u.ativo && !ehVoce && (
                             <button onClick={() => handleExcluir(u)} title="Excluir" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 12, color: 'var(--red)' }}>
                               <i className="ti ti-trash" /> Excluir

@@ -6,6 +6,7 @@ const GESTAO = [PERFIS.ADMIN, PERFIS.ATENDENTE]
 const EQUIPE = [...GESTAO, PERFIS.TECNICO]
 const ITENS = [
   { to: '/', label: 'Chamados', perfis: null },
+  { to: '/historico', label: 'Histórico', perfis: EQUIPE },
   { to: '/agenda', label: 'Agenda técnica', perfis: EQUIPE },
   { to: '/equipamentos', label: 'Equipamentos', perfis: EQUIPE },
   { to: '/setores', label: 'Setores', perfis: GESTAO },

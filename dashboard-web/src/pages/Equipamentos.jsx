@@ -3,6 +3,14 @@ import { buscarEquipamentos, criarEquipamento, buscarTiposEquipamento, excluirEq
 import { buscarSetores } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
 import { useAuth } from '../context/AuthContext'
+import CampoComLista from '../components/CampoComLista'
+
+const MARCAS_COMPUTADOR = ['HP', 'Positivo', 'Lenovo', 'ThinkCentre', 'Dell']
+const MARCAS_POR_TIPO = {
+  Computador: MARCAS_COMPUTADOR,
+  Notebook: MARCAS_COMPUTADOR,
+  Impressora: ['Canon', 'Ricoh', 'Kyocera', 'HP']
+}
 
 const VAZIO = {
   setorId: '', tipoId: '', marca: '', modelo: '', patrimonio: '', numeroSerie: '', observacoes: ''
@@ -95,6 +103,9 @@ export default function Equipamentos() {
     }
   }
 
+  const tipoSelecionado = tipos.find(tipo => String(tipo.id) === String(form.tipoId))?.nome
+  const marcas = MARCAS_POR_TIPO[tipoSelecionado]
+
   return (
     <div>
       <div style={{
@@ -152,8 +163,10 @@ export default function Equipamentos() {
                 </select>
               </div>
               <div className="field">
-                <label>Marca</label>
-                <input type="text" value={form.marca} onChange={(e) => campo('marca', e.target.value)} />
+                <label htmlFor="equipamento-marca">Marca</label>
+                {marcas
+                  ? <CampoComLista key={tipoSelecionado} id="equipamento-marca" nomeLista="marcas" itens={marcas} valor={form.marca} alterar={marca => campo('marca', marca)} />
+                  : <input id="equipamento-marca" type="text" value={form.marca} onChange={e => campo('marca', e.target.value)} />}
               </div>
               <div className="field">
                 <label>Modelo</label>

@@ -4,6 +4,9 @@ import com.manutencao.sistema.usuario.dto.UsuarioEquipeRequest;
 import com.manutencao.sistema.usuario.dto.UsuarioResponse;
 import com.manutencao.sistema.usuario.service.UsuarioService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import org.springframework.web.bind.annotation.PatchMapping;
 import java.util.List;
 import java.security.Principal;
 import org.springframework.http.HttpStatus;
@@ -42,5 +45,12 @@ public class UsuarioController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void inativar(@PathVariable Long id, Principal principal) {
         service.inativar(id, principal.getName());
+    }
+
+    public record AlteracaoSetor(@NotNull @Positive Long setorId) {}
+
+    @PatchMapping("/{id}/setor")
+    public UsuarioResponse alterarSetor(@PathVariable Long id, @Valid @RequestBody AlteracaoSetor request, Principal principal) {
+        return service.alterarSetor(id, request.setorId(), principal.getName());
     }
 }

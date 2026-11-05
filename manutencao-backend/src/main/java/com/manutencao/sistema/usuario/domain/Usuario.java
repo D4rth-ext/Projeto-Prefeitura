@@ -77,6 +77,10 @@ public class Usuario {
         this.ativo = false;
     }
 
+    public void alterarSetor(Setor setor) {
+        this.setor = setor;
+    }
+
     public void trocarSenha(String novaSenhaHash) {
         this.senhaHash = novaSenhaHash;
     }

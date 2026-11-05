@@ -95,6 +95,25 @@ public class UsuarioService {
         usuarioRepository.saveAndFlush(usuario);
     }
 
+    @Transactional
+    public UsuarioResponse alterarSetor(Long id, Long setorId, String email) {
+        if (acesso.usuario(email).getPerfil() != Perfil.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
+        }
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário", id));
+        if (usuario.getPerfil() != Perfil.SOLICITANTE || !usuario.isAtivo()) {
+            throw new RegraNegocioException("Somente funcionários solicitantes ativos podem mudar de setor.");
+        }
+        Setor setor = setorRepository.findById(setorId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Setor", setorId));
+        if (!setor.isAtivo()) {
+            throw new RegraNegocioException("O setor informado está inativo.");
+        }
+        usuario.alterarSetor(setor);
+        return UsuarioResponse.de(usuarioRepository.saveAndFlush(usuario));
+    }
+
     private void encerrarVinculosDoTecnico(Long tecnicoId, Long autorId) {
         // A mesma ordem de bloqueio impede que duas inativações concorrentes
         // deixem uma OS em análise sem nenhum técnico ativo.

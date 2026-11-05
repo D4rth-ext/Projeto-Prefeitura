@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { buscarSetores, criarSetor, atualizarSetor, excluirSetor } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
+import { useAuth } from '../context/AuthContext'
+import CampoComLista from '../components/CampoComLista'
+import { catalogoSetores, telefoneDoSetor } from '../utils/catalogoSetores'
 
 const VAZIO = { nome: '', telefone: '', email: '', endereco: '' }
 
 export default function Setores() {
+  const { usuario } = useAuth()
   const [setores, setSetores] = useState([])
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
@@ -113,8 +117,15 @@ export default function Setores() {
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div className="field">
-                <label>Nome do setor</label>
-                <input type="text" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+                <label htmlFor="nome-setor">Nome do setor</label>
+                {usuario?.perfil === 'ADMIN' && !editandoId
+                  ? <CampoComLista id="nome-setor" nomeLista="setores" itens={catalogoSetores} valor={form.nome} obrigatorio
+                      selecionar={nome => setForm(atual => ({ ...atual, nome, telefone: telefoneDoSetor(nome) }))}
+                      alterar={nome => setForm(atual => {
+                        const telefoneManual = atual.telefone && atual.telefone !== telefoneDoSetor(atual.nome)
+                        return { ...atual, nome, telefone: telefoneManual ? atual.telefone : telefoneDoSetor(nome) }
+                      })} />
+                  : <input id="nome-setor" type="text" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} required />}
               </div>
               <div className="field">
                 <label>Telefone</label>

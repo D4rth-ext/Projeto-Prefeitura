@@ -1,5 +1,9 @@
 import { api } from './client'
 
+export function alterarSetorUsuario(id, setorId) {
+  return api.patch(`/usuarios/${id}/setor`, { setorId }).then(r => r.data)
+}
+
 // GET /usuarios — só ADMIN. Lista toda a equipe (e solicitantes, se vierem juntos)
 export function buscarUsuarios() {
   return api.get('/usuarios').then((r) => r.data)
