@@ -1,6 +1,7 @@
 package com.manutencao.sistema.os.repository;
 
 import com.manutencao.sistema.os.domain.OrdemServico;
+import com.manutencao.sistema.os.domain.StatusOs;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -9,6 +10,22 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface OrdemServicoRepository extends JpaRepository<OrdemServico, Long> {
+
+    interface TotalPorEquipamento {
+        Long getEquipamentoId();
+        long getTotal();
+    }
+
+    @Query("""
+            select os.equipamentoId as equipamentoId, count(os) as total
+            from OrdemServico os
+            where os.status = :status and os.equipamentoId in :equipamentoIds
+            group by os.equipamentoId
+            """)
+    List<TotalPorEquipamento> contarPorEquipamento(
+            @Param("equipamentoIds") List<Long> equipamentoIds, @Param("status") StatusOs status);
+
+    long countByEquipamentoIdAndStatus(Long equipamentoId, StatusOs status);
 
     @Override
     @EntityGraph(attributePaths = {"setor", "solicitante", "abertoPor"})

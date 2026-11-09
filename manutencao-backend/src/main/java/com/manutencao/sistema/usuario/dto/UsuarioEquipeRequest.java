@@ -1,5 +1,6 @@
 package com.manutencao.sistema.usuario.dto;
 
+import com.manutencao.sistema.usuario.service.PoliticaSenha;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -14,8 +15,7 @@ public record UsuarioEquipeRequest(
         String telefone,
 
         @NotBlank(message = "A senha é obrigatória.")
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,}$",
-                message = "A senha deve ter no mínimo 8 caracteres, com letra e número.")
+        @Pattern(regexp = PoliticaSenha.FORMATO, message = PoliticaSenha.MENSAGEM)
         String senha,
 
         @NotBlank(message = "O perfil é obrigatório.") String perfil) {

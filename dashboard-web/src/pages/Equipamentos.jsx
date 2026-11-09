@@ -223,7 +223,7 @@ export default function Equipamentos() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--page-bg)' }}>
-                  {['Patrimônio / série', 'Tipo', 'Marca / modelo', 'Setor', ''].map((col) => (
+                  {['Patrimônio / série', 'Tipo', 'Marca / modelo', 'Setor', 'Consertos', ''].map((col) => (
                     <th key={col} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
                       {col}
                     </th>
@@ -237,6 +237,7 @@ export default function Equipamentos() {
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)' }}>{eq.tipo?.nome}</td>
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>{eq.marca} {eq.modelo}</td>
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>{eq.setor?.nome}</td>
+                    <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)' }}>{eq.totalConsertos}</td>
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {podeEditar && (
                         <button onClick={() => handleExcluir(eq)} title="Excluir" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 12, color: 'var(--red)' }}>

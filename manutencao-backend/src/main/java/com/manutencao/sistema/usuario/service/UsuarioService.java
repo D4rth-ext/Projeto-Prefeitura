@@ -7,11 +7,15 @@ import com.manutencao.sistema.setor.domain.Setor;
 import com.manutencao.sistema.setor.repository.SetorRepository;
 import com.manutencao.sistema.usuario.domain.Perfil;
 import com.manutencao.sistema.usuario.domain.Usuario;
+import com.manutencao.sistema.usuario.dto.RedefinicaoSenhaRequest;
 import com.manutencao.sistema.usuario.dto.RegistroSolicitanteRequest;
+import com.manutencao.sistema.usuario.dto.SolicitanteResumoResponse;
 import com.manutencao.sistema.usuario.dto.UsuarioEquipeRequest;
 import com.manutencao.sistema.usuario.dto.UsuarioResponse;
 import com.manutencao.sistema.usuario.repository.UsuarioRepository;
+import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.manutencao.sistema.os.service.AcessoOsService;
@@ -29,23 +33,75 @@ public class UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbc;
     private final AcessoOsService acesso;
+    private final EntityManager entityManager;
 
     public UsuarioService(UsuarioRepository usuarioRepository, SetorRepository setorRepository,
-                          PasswordEncoder passwordEncoder, JdbcTemplate jdbc, AcessoOsService acesso) {
+                          PasswordEncoder passwordEncoder, JdbcTemplate jdbc, AcessoOsService acesso,
+                          EntityManager entityManager) {
         this.usuarioRepository = usuarioRepository;
         this.setorRepository = setorRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbc = jdbc;
         this.acesso = acesso;
+        this.entityManager = entityManager;
     }
 
     public List<UsuarioResponse> listar() {
         return usuarioRepository.findAll().stream().map(UsuarioResponse::de).toList();
     }
 
+    public List<SolicitanteResumoResponse> listarSolicitantes(Long setorId, String busca, String email) {
+        acesso.exigirGestao(acesso.usuario(email));
+        return usuarioRepository.buscarAtivosComSetor(Perfil.SOLICITANTE, setorId, busca.trim().toLowerCase(Locale.ROOT))
+                .stream().map(SolicitanteResumoResponse::de).toList();
+    }
+
+    @Transactional
+    public void trocarMinhaSenha(RedefinicaoSenhaRequest request, String email) {
+        Usuario autor = acesso.usuario(email);
+        redefinirSenha(autor.getId(), request, autor);
+    }
+
+    @Transactional
+    public void redefinirSenha(Long id, RedefinicaoSenhaRequest request, String email) {
+        redefinirSenha(id, request, acesso.usuario(email));
+    }
+
+    private void redefinirSenha(Long id, RedefinicaoSenhaRequest request, Usuario autor) {
+        boolean propria = autor.getId().equals(id);
+        if (autor.getPerfil() == Perfil.TECNICO || autor.getPerfil() == Perfil.SOLICITANTE && !propria) {
+            throw redefinicaoProibida();
+        }
+
+        Usuario alvo = obterParaAlteracao(id);
+        if (autor.getPerfil() == Perfil.ATENDENTE && alvo.getPerfil() != Perfil.SOLICITANTE) {
+            throw redefinicaoProibida();
+        }
+        if (propria) {
+            // O usuário autenticado já pode estar no cache da transação. Releia sob o bloqueio.
+            entityManager.refresh(alvo);
+            if (!alvo.isAtivo() || request.senhaAtual() == null || request.senhaAtual().isBlank()
+                    || !passwordEncoder.matches(request.senhaAtual(), alvo.getSenhaHash())) {
+                throw new RegraNegocioException("Informe a senha atual correta para alterar sua senha.");
+            }
+        }
+        PoliticaSenha.validar(request.novaSenha());
+        if (!request.novaSenha().equals(request.confirmarSenha())) {
+            throw new RegraNegocioException("As senhas não coincidem.");
+        }
+        if (passwordEncoder.matches(request.novaSenha(), alvo.getSenhaHash())) {
+            throw new RegraNegocioException("A nova senha deve ser diferente da senha atual.");
+        }
+
+        alvo.trocarSenha(passwordEncoder.encode(request.novaSenha()));
+        usuarioRepository.saveAndFlush(alvo);
+        jdbc.update("insert into usuario_evento_senha (usuario_id, autor_id) values (?, ?)", id, autor.getId());
+    }
+
     /** Só o Admin chama (rota protegida no SecurityConfig). Nunca cria Solicitante por aqui. */
     @Transactional
     public UsuarioResponse criarEquipe(UsuarioEquipeRequest request) {
+        PoliticaSenha.validar(request.senha());
         Perfil perfil = perfilDaEquipe(request.perfil());
         String email = emailNormalizado(request.email());
         if (usuarioRepository.existsByEmailIgnoreCase(email)) {
@@ -59,6 +115,7 @@ public class UsuarioService {
     /** Rota pública (auth/registro). O perfil é SEMPRE Solicitante — nunca vem do request. */
     @Transactional
     public UsuarioResponse registrarSolicitante(RegistroSolicitanteRequest request) {
+        PoliticaSenha.validar(request.senha());
         if (!request.senha().equals(request.confirmarSenha())) {
             throw new RegraNegocioException("As senhas não coincidem.");
         }
@@ -82,8 +139,10 @@ public class UsuarioService {
         if (autor.getPerfil() != Perfil.ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
         }
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário", id));
+        Usuario usuario = obterParaAlteracao(id);
+        if (usuario.getId().equals(autor.getId())) {
+            entityManager.refresh(usuario);
+        }
         if (!usuario.isAtivo()) {
             return;
         }
@@ -112,6 +171,15 @@ public class UsuarioService {
         }
         usuario.alterarSetor(setor);
         return UsuarioResponse.de(usuarioRepository.saveAndFlush(usuario));
+    }
+
+    private Usuario obterParaAlteracao(Long id) {
+        return usuarioRepository.buscarParaAlteracao(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário", id));
+    }
+
+    private ResponseStatusException redefinicaoProibida() {
+        return new ResponseStatusException(HttpStatus.FORBIDDEN, "Sem permissão para redefinir esta senha.");
     }
 
     private void encerrarVinculosDoTecnico(Long tecnicoId, Long autorId) {

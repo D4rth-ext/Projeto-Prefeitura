@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/manutencao
-    username: manutencao
-    password: dev
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/manutencao}
+    username: ${DB_USER:manutencao}
+    password: ${DB_PASSWORD:}
   jpa:
     open-in-view: false
     hibernate:
@@ -17,8 +17,14 @@ spring:
 
 app:
   jwt:
-    segredo: "trocar-esta-chave-depois-senao-lascou-longa-e-aleatoria-1234567890"
+    segredo: ${JWT_SECRET}
     expiracao-minutos: 480
+  whatsapp:
+    verify-token: ${WHATSAPP_VERIFY_TOKEN:}
+    app-secret: ${WHATSAPP_APP_SECRET:}
+    access-token: ${WHATSAPP_ACCESS_TOKEN:}
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+    api-version: ${WHATSAPP_API_VERSION:v23.0}
 
 server:
-  port: 8080
+  port: ${PORT:8080}

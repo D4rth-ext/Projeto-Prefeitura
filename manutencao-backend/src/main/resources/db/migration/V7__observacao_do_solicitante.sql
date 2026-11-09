@@ -1,0 +1,6 @@
+ALTER TABLE os_registro DROP CONSTRAINT os_registro_tipo_check;
+
+ALTER TABLE os_registro ALTER COLUMN tipo TYPE VARCHAR(24);
+
+ALTER TABLE os_registro ADD CONSTRAINT os_registro_tipo_check
+    CHECK (tipo IN ('DIAGNOSTICO', 'ACAO', 'OBSERVACAO', 'ORIENTACAO', 'OBSERVACAO_SOLICITANTE'));

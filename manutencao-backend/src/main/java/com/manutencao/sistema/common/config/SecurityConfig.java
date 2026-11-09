@@ -43,13 +43,19 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, accessDeniedException) ->
                                 response.setStatus(HttpStatus.FORBIDDEN.value())))
                 .authorizeHttpRequests(auth -> auth
-                        // Preserva o status do erro original sem reautenticar o despacho interno.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/whatsapp/webhook").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/usuarios/solicitantes", "/api/v1/relatorios/os")
+                                .hasAnyRole("ADMIN", "ATENDENTE")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/usuarios/me/senha")
+                                .hasAnyRole("ADMIN", "SOLICITANTE")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/usuarios/*/senha")
+                                .hasAnyRole("ADMIN", "ATENDENTE")
                         .requestMatchers("/api/v1/usuarios", "/api/v1/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/solicitantes").hasAnyRole("ADMIN", "ATENDENTE")
                         .requestMatchers("/api/v1/equipe").hasAnyRole("ADMIN", "ATENDENTE")
-                        .requestMatchers("/api/v1/solicitantes", "/api/v1/solicitantes/**").hasAnyRole("ADMIN", "ATENDENTE")
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/setores", "/api/v1/setores/**",
                                 "/api/v1/equipamentos", "/api/v1/equipamentos/**",

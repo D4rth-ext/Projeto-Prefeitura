@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -27,11 +28,12 @@ public class JwtService {
         this.expiracaoMinutos = expiracaoMinutos;
     }
 
-    public String gerarToken(String email, String perfil) {
+    public String gerarToken(String email, String perfil, UUID revisaoSenha) {
         Instant agora = Instant.now();
         return Jwts.builder()
                 .subject(email)
                 .claim("perfil", perfil)
+                .claim("revisaoSenha", revisaoSenha.toString())
                 .issuedAt(Date.from(agora))
                 .expiration(Date.from(agora.plus(expiracaoMinutos, ChronoUnit.MINUTES)))
                 .signWith(chave)

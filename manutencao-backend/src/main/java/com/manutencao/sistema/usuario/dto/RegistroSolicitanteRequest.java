@@ -1,5 +1,6 @@
 package com.manutencao.sistema.usuario.dto;
 
+import com.manutencao.sistema.usuario.service.PoliticaSenha;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,8 +18,7 @@ public record RegistroSolicitanteRequest(
         @NotNull(message = "O setor é obrigatório.") Long setorId,
 
         @NotBlank(message = "A senha é obrigatória.")
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,}$",
-                message = "A senha deve ter no mínimo 8 caracteres, com letra e número.")
+        @Pattern(regexp = PoliticaSenha.FORMATO, message = PoliticaSenha.MENSAGEM)
         String senha,
 
         @NotBlank(message = "Confirme a senha.") String confirmarSenha) {

@@ -2,6 +2,7 @@ package com.manutencao.sistema.os.service;
 
 import com.manutencao.sistema.common.exception.RegraNegocioException;
 import com.manutencao.sistema.os.domain.OrdemServico;
+import com.manutencao.sistema.os.domain.StatusOs;
 import com.manutencao.sistema.os.domain.TipoRegistroOs;
 import com.manutencao.sistema.os.dto.EventoOsResponse;
 import com.manutencao.sistema.os.dto.RegistroOsRequest;
@@ -12,8 +13,10 @@ import com.manutencao.sistema.os.repository.RegistroOsRepository;
 import com.manutencao.sistema.usuario.domain.Perfil;
 import com.manutencao.sistema.usuario.domain.Usuario;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Transactional(readOnly = true)
@@ -33,7 +36,15 @@ public class RegistroOsService {
     @Transactional
     public RegistroOsResponse criar(Long id, RegistroOsRequest request, String email) {
         Usuario autor = acesso.usuario(email);
-        acesso.exigirEquipe(autor);
+        boolean observacaoSolicitante = request.tipo() == TipoRegistroOs.OBSERVACAO_SOLICITANTE;
+        if (observacaoSolicitante) {
+            if (autor.getPerfil() != Perfil.SOLICITANTE) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Somente o solicitante pode adicionar observações em seu nome.");
+            }
+        } else {
+            acesso.exigirEquipe(autor);
+        }
         OrdemServico os = acesso.consultar(id, autor);
         acesso.conferirVersao(os, request.versao());
 
@@ -43,6 +54,9 @@ public class RegistroOsService {
 
         if (os.encerrada()) {
             throw new RegraNegocioException("Não é possível acrescentar registros em uma OS entregue ou cancelada.");
+        }
+        if (observacaoSolicitante && os.getStatus() == StatusOs.FINALIZADO) {
+            throw new RegraNegocioException("Só é possível acrescentar observações enquanto a OS está em atendimento.");
         }
 
         os.registrarAlteracao();

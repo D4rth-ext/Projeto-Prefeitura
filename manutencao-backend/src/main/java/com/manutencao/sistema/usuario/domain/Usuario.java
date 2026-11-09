@@ -15,6 +15,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 /** Espelha "usuario" (V1__init.sql). Senha sempre em hash (BCrypt), nunca em texto puro. */
 @Entity
@@ -36,6 +37,9 @@ public class Usuario {
 
     @Column(name = "senha_hash", nullable = false, length = 100)
     private String senhaHash;
+
+    @Column(name = "revisao_senha", nullable = false)
+    private UUID revisaoSenha = UUID.randomUUID();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -83,6 +87,7 @@ public class Usuario {
 
     public void trocarSenha(String novaSenhaHash) {
         this.senhaHash = novaSenhaHash;
+        this.revisaoSenha = UUID.randomUUID();
     }
 
     @PrePersist
@@ -113,6 +118,10 @@ public class Usuario {
 
     public String getSenhaHash() {
         return senhaHash;
+    }
+
+    public UUID getRevisaoSenha() {
+        return revisaoSenha;
     }
 
     public Perfil getPerfil() {

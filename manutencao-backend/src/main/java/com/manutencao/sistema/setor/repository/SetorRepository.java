@@ -8,9 +8,15 @@ import org.springframework.data.repository.query.Param;
 
 public interface SetorRepository extends JpaRepository<Setor, Long> {
 
-    boolean existsByNomeIgnoreCaseAndAtivoTrue(String nome);
-
-    boolean existsByNomeIgnoreCaseAndAtivoTrueAndIdNot(String nome, Long id);
+    @Query(value = """
+            select exists (
+                select 1 from setor
+                where id is distinct from cast(:id as bigint)
+                  and lower(regexp_replace(nome collate "und-x-icu", '[[:space:]]', '', 'g')) =
+                      lower(regexp_replace(cast(:nome as text) collate "und-x-icu", '[[:space:]]', '', 'g'))
+            )
+            """, nativeQuery = true)
+    boolean existeNome(@Param("nome") String nome, @Param("id") Long id);
 
     @Query("""
             select s from Setor s

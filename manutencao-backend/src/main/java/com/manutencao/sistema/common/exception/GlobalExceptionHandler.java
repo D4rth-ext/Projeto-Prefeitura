@@ -18,7 +18,7 @@ public class GlobalExceptionHandler {
 
     // nome da constraint/índice do banco -> mensagem amigável
     private static final Map<String, String> MENSAGENS_DE_RESTRICAO = Map.of(
-            "uq_setor_nome_ativo", "Já existe um setor ativo com este nome.",
+            "uq_setor_nome", "Já existe um setor com este nome.",
             "uq_equip_patrimonio", "Já existe um equipamento com este patrimônio.",
             "uq_equip_serie", "Já existe um equipamento com este número de série para a mesma marca.",
             "uq_usuario_email", "Já existe um usuário com este e-mail.");

@@ -111,3 +111,18 @@ Atendente. Usuários (equipe e funcionários): só Admin, e não é possível
 excluir a própria conta. Técnico com OS em análise sem outro técnico vinculado
 não pode ser excluído (o backend avisa qual OS precisa de outro técnico).
 Não há rota de reativar usuário nem de listar equipamentos excluídos no front.
+
+## Chatbot do WhatsApp (backend)
+
+O backend inclui o webhook `GET/POST /api/v1/whatsapp/webhook`. Configure no ambiente do backend:
+
+- `WHATSAPP_VERIFY_TOKEN`: valor que você também informa na configuração do webhook na Meta.
+- `WHATSAPP_APP_SECRET`: segredo do app, usado para validar `X-Hub-Signature-256`.
+- `WHATSAPP_ACCESS_TOKEN` e `WHATSAPP_PHONE_NUMBER_ID`: credenciais da WhatsApp Cloud API.
+- `WHATSAPP_API_VERSION`: versão da Graph API (padrão `v23.0`).
+
+Inscreva o webhook no campo `messages` e aponte a URL pública para `/api/v1/whatsapp/webhook`.
+O bot reconhece solicitantes ativos pelo telefone cadastrado, pergunta categoria e descrição,
+confirma antes de abrir a OS e devolve o número. A conversa e os IDs das mensagens recebidas
+são persistidos no PostgreSQL; a migração V8 é aplicada pelo Flyway. Números não cadastrados
+ou duplicados recebem orientação para falar com o atendimento.

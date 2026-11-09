@@ -69,6 +69,30 @@ public class OrdemServicoService {
         return OrdemServicoResponse.de(osRepository.save(os));
     }
 
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public OrdemServicoResponse abrirPeloWhatsApp(AberturaOsRequest request, String waId) {
+        String numero = waId.replaceAll("\\D", "");
+        String local = numero.startsWith("55") && numero.length() > 11
+                ? numero.substring(2) : numero;
+        List<Usuario> encontrados = usuarioRepository.buscarPorTelefoneAtivo(
+                Perfil.SOLICITANTE.name(), numero, local);
+        if (encontrados.size() != 1) {
+            throw new RegraNegocioException(encontrados.isEmpty()
+                    ? "Não encontrei um solicitante ativo com esse WhatsApp cadastrado."
+                    : "Há mais de um cadastro com esse telefone. Fale com o atendimento para corrigir.");
+        }
+        Usuario solicitante = encontrados.getFirst();
+        Setor setor = solicitante.getSetor();
+        if (setor == null || !setor.isAtivo()) {
+            throw new RegraNegocioException("Seu cadastro precisa ter um setor ativo vinculado para abrir chamado.");
+        }
+        OrdemServico os = new OrdemServico(setor, solicitante, solicitante,
+                request.categoria(), request.descricaoProblema());
+        os.preencherAbertura(request.patrimonioInformado(), request.computadorLiga(),
+                request.temRede(), request.consegueAnyDesk(), request.contato(), request.melhorHorario());
+        return OrdemServicoResponse.de(osRepository.save(os));
+    }
+
     public List<OrdemServicoResponse> listar(String email) {
         Usuario usuario = usuarioAutenticado(email);
 

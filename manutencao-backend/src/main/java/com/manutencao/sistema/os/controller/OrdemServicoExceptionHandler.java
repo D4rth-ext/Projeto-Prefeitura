@@ -21,6 +21,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
         RegistroOsController.class,
         FluxoOsController.class,
         BuscaOsController.class,
+        RelatorioOsController.class,
         com.manutencao.sistema.agenda.controller.AgendamentoController.class,
         com.manutencao.sistema.usuario.controller.EquipeController.class,
         com.manutencao.sistema.usuario.controller.UsuarioController.class

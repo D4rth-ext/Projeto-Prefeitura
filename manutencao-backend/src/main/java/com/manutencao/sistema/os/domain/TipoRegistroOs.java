@@ -4,5 +4,6 @@ public enum TipoRegistroOs {
     DIAGNOSTICO,
     ACAO,
     OBSERVACAO,
-    ORIENTACAO
+    ORIENTACAO,
+    OBSERVACAO_SOLICITANTE
 }

@@ -55,8 +55,9 @@ public class RegistroOsRepository {
                 """, Boolean.class, osId, registroId));
     }
 
-    public List<RegistroOsResponse> listar(Long osId, boolean apenasOrientacoes) {
-        String filtro = apenasOrientacoes ? " and registro.tipo = 'ORIENTACAO'" : "";
+    public List<RegistroOsResponse> listar(Long osId, boolean apenasVisiveisAoSolicitante) {
+        String filtro = apenasVisiveisAoSolicitante
+                ? " and registro.tipo in ('ORIENTACAO', 'OBSERVACAO_SOLICITANTE')" : "";
         return jdbc.query("""
                 select registro.*, autor.nome as autor_nome, os.versao
                 from os_registro registro

@@ -8,10 +8,15 @@ import com.manutencao.sistema.equipamento.domain.TipoEquipamento;
 import com.manutencao.sistema.equipamento.dto.EquipamentoRequest;
 import com.manutencao.sistema.equipamento.dto.EquipamentoResponse;
 import com.manutencao.sistema.equipamento.repository.EquipamentoRepository;
+import com.manutencao.sistema.os.domain.StatusOs;
+import com.manutencao.sistema.os.repository.OrdemServicoRepository;
+import com.manutencao.sistema.os.repository.OrdemServicoRepository.TotalPorEquipamento;
 import com.manutencao.sistema.setor.domain.Setor;
 import com.manutencao.sistema.setor.repository.SetorRepository;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,22 +27,33 @@ public class EquipamentoService {
     private final EquipamentoRepository repository;
     private final SetorRepository setorRepository;
     private final TipoEquipamentoService tipoService;
+    private final OrdemServicoRepository ordemServicoRepository;
 
     public EquipamentoService(EquipamentoRepository repository, SetorRepository setorRepository,
-                              TipoEquipamentoService tipoService) {
+                              TipoEquipamentoService tipoService, OrdemServicoRepository ordemServicoRepository) {
         this.repository = repository;
         this.setorRepository = setorRepository;
         this.tipoService = tipoService;
+        this.ordemServicoRepository = ordemServicoRepository;
     }
 
     public List<EquipamentoResponse> listar(Long setorId, String busca, boolean incluirInativos) {
         String limpa = normalizar(busca);
         String padrao = limpa == null ? "%" : "%" + limpa.toLowerCase(Locale.ROOT) + "%";
-        return repository.buscar(setorId, padrao, incluirInativos).stream().map(EquipamentoResponse::de).toList();
+        List<Equipamento> equipamentos = repository.buscar(setorId, padrao, incluirInativos);
+        if (equipamentos.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = equipamentos.stream().map(Equipamento::getId).toList();
+        Map<Long, Long> totais = ordemServicoRepository.contarPorEquipamento(ids, StatusOs.FINALIZADO)
+                .stream().collect(Collectors.toMap(TotalPorEquipamento::getEquipamentoId, TotalPorEquipamento::getTotal));
+        return equipamentos.stream()
+                .map(equipamento -> EquipamentoResponse.de(equipamento, totais.getOrDefault(equipamento.getId(), 0L)))
+                .toList();
     }
 
     public EquipamentoResponse buscarPorId(Long id) {
-        return EquipamentoResponse.de(obter(id));
+        return respostaComTotal(obter(id));
     }
 
     @Transactional
@@ -50,7 +66,7 @@ public class EquipamentoService {
         }
         Equipamento equipamento = new Equipamento(setor, tipo, dados.marca(), dados.modelo(),
                 dados.patrimonio(), dados.numeroSerie(), dados.observacoes());
-        return EquipamentoResponse.de(repository.save(equipamento));
+        return EquipamentoResponse.de(repository.save(equipamento), 0);
     }
 
     @Transactional
@@ -66,7 +82,7 @@ public class EquipamentoService {
         }
         equipamento.atualizarDados(setor, tipo, dados.marca(), dados.modelo(),
                 dados.patrimonio(), dados.numeroSerie(), dados.observacoes());
-        return EquipamentoResponse.de(repository.save(equipamento));
+        return respostaComTotal(repository.save(equipamento));
     }
 
     @Transactional
@@ -83,7 +99,12 @@ public class EquipamentoService {
             throw new RegraNegocioException("Não é possível reativar: o setor do equipamento está inativo.");
         }
         equipamento.reativar();
-        return EquipamentoResponse.de(repository.save(equipamento));
+        return respostaComTotal(repository.save(equipamento));
+    }
+
+    private EquipamentoResponse respostaComTotal(Equipamento equipamento) {
+        long total = ordemServicoRepository.countByEquipamentoIdAndStatus(equipamento.getId(), StatusOs.FINALIZADO);
+        return EquipamentoResponse.de(equipamento, total);
     }
 
     private Setor obterSetorAtivo(Long setorId) {

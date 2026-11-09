@@ -12,6 +12,7 @@ public record EquipamentoResponse(
         String patrimonio,
         String numeroSerie,
         String observacoes,
+        long totalConsertos,
         boolean ativo,
         Instant criadoEm,
         Instant atualizadoEm) {
@@ -22,12 +23,12 @@ public record EquipamentoResponse(
     public record TipoResumo(Long id, String nome) {
     }
 
-    public static EquipamentoResponse de(Equipamento e) {
+    public static EquipamentoResponse de(Equipamento e, long totalConsertos) {
         return new EquipamentoResponse(
                 e.getId(),
                 new SetorResumo(e.getSetor().getId(), e.getSetor().getNome()),
                 new TipoResumo(e.getTipo().getId(), e.getTipo().getNome()),
                 e.getMarca(), e.getModelo(), e.getPatrimonio(), e.getNumeroSerie(), e.getObservacoes(),
-                e.isAtivo(), e.getCriadoEm(), e.getAtualizadoEm());
+                totalConsertos, e.isAtivo(), e.getCriadoEm(), e.getAtualizadoEm());
     }
 }

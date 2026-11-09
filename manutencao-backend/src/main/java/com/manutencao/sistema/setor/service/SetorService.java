@@ -35,9 +35,7 @@ public class SetorService {
     @Transactional
     public SetorResponse criar(SetorRequest request) {
         String nome = nomeObrigatorio(request);
-        if (repository.existsByNomeIgnoreCaseAndAtivoTrue(nome)) {
-            throw new ConflitoException("Já existe um setor ativo com o nome \"" + nome + "\".");
-        }
+        exigirNomeDisponivel(nome, null);
         Setor setor = new Setor(nome, normalizar(request.telefone()), normalizar(request.email()),
                 normalizar(request.endereco()));
         return SetorResponse.de(repository.save(setor));
@@ -47,9 +45,7 @@ public class SetorService {
     public SetorResponse atualizar(Long id, SetorRequest request) {
         Setor setor = obter(id);
         String nome = nomeObrigatorio(request);
-        if (setor.isAtivo() && repository.existsByNomeIgnoreCaseAndAtivoTrueAndIdNot(nome, id)) {
-            throw new ConflitoException("Já existe um setor ativo com o nome \"" + nome + "\".");
-        }
+        exigirNomeDisponivel(nome, id);
         setor.atualizarDados(nome, normalizar(request.telefone()), normalizar(request.email()),
                 normalizar(request.endereco()));
         return SetorResponse.de(repository.save(setor));
@@ -65,16 +61,18 @@ public class SetorService {
     @Transactional
     public SetorResponse reativar(Long id) {
         Setor setor = obter(id);
-        if (!setor.isAtivo() && repository.existsByNomeIgnoreCaseAndAtivoTrue(setor.getNome())) {
-            throw new ConflitoException(
-                    "Não é possível reativar: já existe outro setor ativo com o nome \"" + setor.getNome() + "\".");
-        }
         setor.reativar();
         return SetorResponse.de(repository.save(setor));
     }
 
     private Setor obter(Long id) {
         return repository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Setor", id));
+    }
+
+    private void exigirNomeDisponivel(String nome, Long id) {
+        if (repository.existeNome(nome, id)) {
+            throw new ConflitoException("Já existe um setor com o nome \"" + nome + "\".");
+        }
     }
 
     private String nomeObrigatorio(SetorRequest request) {
