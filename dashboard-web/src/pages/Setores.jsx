@@ -6,6 +6,7 @@ import CampoComLista from '../components/CampoComLista'
 import { catalogoSetores, telefoneDoSetor } from '../utils/catalogoSetores'
 
 const VAZIO = { nome: '', telefone: '', email: '', endereco: '' }
+const normalizarTexto = texto => texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 
 export default function Setores() {
   const { usuario } = useAuth()
@@ -18,12 +19,19 @@ export default function Setores() {
   const [editandoId, setEditandoId] = useState(null)
   const [mostrarForm, setMostrarForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
+  const buscaNormalizada = normalizarTexto(busca)
+  const ramalBusca = busca.replace(/\D/g, '')
+  const setoresFiltrados = setores.filter(setor => {
+    const nomeETelefone = normalizarTexto(`${setor.nome} ${setor.telefone || ''}`)
+    const ramais = (setor.telefone || '').replace(/\D/g, '')
+    return nomeETelefone.includes(buscaNormalizada) || (ramalBusca && ramais.includes(ramalBusca))
+  })
 
-  async function carregar(termo = '') {
+  async function carregar() {
     setCarregando(true)
     setErro(null)
     try {
-      setSetores(await buscarSetores(termo))
+      setSetores(await buscarSetores())
     } catch (err) {
       setErro('Não foi possível carregar os setores.')
     } finally {
@@ -32,11 +40,6 @@ export default function Setores() {
   }
 
   useEffect(() => { carregar() }, [])
-
-  function handleBuscar(e) {
-    e.preventDefault()
-    carregar(busca)
-  }
 
   function abrirNovo() {
     setForm(VAZIO)
@@ -60,7 +63,7 @@ export default function Setores() {
         await criarSetor(form)
       }
       setMostrarForm(false)
-      carregar(busca)
+      carregar()
     } catch (err) {
       // Cobre 409 (nome de setor já existe entre os ativos)
       setErro(mensagemDeErro(err, 'Não foi possível salvar o setor.'))
@@ -73,7 +76,7 @@ export default function Setores() {
     if (!confirm('Inativar este setor? Ele deixa de aparecer nas listas, mas pode ser reativado depois.')) return
     try {
       await excluirSetor(id)
-      carregar(busca)
+      carregar()
     } catch (err) {
       setErro(mensagemDeErro(err, 'Não foi possível inativar o setor.'))
     }
@@ -96,19 +99,16 @@ export default function Setores() {
       </div>
 
       <div className="content">
-        <form onSubmit={handleBuscar} className="card" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+        <div className="card" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           <input
-            type="text"
-            placeholder="Buscar por nome, telefone ou setor"
+            type="search"
+            aria-label="Buscar setor por nome ou ramal"
+            placeholder="Buscar setor por nome ou ramal"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             style={{ flex: 1, height: 34, border: '1px solid var(--border)', borderRadius: 6, padding: '0 12px', fontSize: 13 }}
           />
-          <button type="submit" className="btn-primary">
-            <i className="ti ti-search" />
-            Pesquisar
-          </button>
-        </form>
+        </div>
 
         {mostrarForm && (
           <form onSubmit={handleSalvar} className="card" style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -119,7 +119,7 @@ export default function Setores() {
               <div className="field">
                 <label htmlFor="nome-setor">Nome do setor</label>
                 {usuario?.perfil === 'ADMIN' && !editandoId
-                  ? <CampoComLista id="nome-setor" nomeLista="setores" itens={catalogoSetores} valor={form.nome} obrigatorio
+                  ? <CampoComLista id="nome-setor" nomeLista="setores" itens={catalogoSetores} valor={form.nome} obrigatorio ramalPorItem={telefoneDoSetor}
                       selecionar={nome => setForm(atual => ({ ...atual, nome, telefone: telefoneDoSetor(nome) }))}
                       alterar={nome => setForm(atual => {
                         const telefoneManual = atual.telefone && atual.telefone !== telefoneDoSetor(atual.nome)
@@ -158,15 +158,17 @@ export default function Setores() {
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           {carregando && <p style={{ padding: 18, color: 'var(--text-secondary)' }}>Carregando...</p>}
           {erro && <p style={{ padding: 18, color: 'var(--red)' }}>{erro}</p>}
-          {!carregando && !erro && setores.length === 0 && (
-            <p style={{ padding: 18, color: 'var(--text-secondary)' }}>Nenhum setor cadastrado.</p>
+          {!carregando && !erro && setoresFiltrados.length === 0 && (
+            <p style={{ padding: 18, color: 'var(--text-secondary)' }}>
+              {setores.length === 0 ? 'Nenhum setor cadastrado.' : 'Nenhum setor encontrado.'}
+            </p>
           )}
-          {!carregando && !erro && setores.length > 0 && (
+          {!carregando && !erro && setoresFiltrados.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--page-bg)' }}>
-                  {['Setor', 'Telefone', 'E-mail', 'Endereço', ''].map((col) => (
+                  {['Setor', 'Ramal / telefone', 'E-mail', 'Endereço', ''].map((col) => (
                     <th key={col} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
                       {col}
                     </th>
@@ -174,7 +176,7 @@ export default function Setores() {
                 </tr>
               </thead>
               <tbody>
-                {setores.map((setor) => (
+                {setoresFiltrados.map((setor) => (
                   <tr key={setor.id}>
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)', fontWeight: 500 }}>{setor.nome}</td>
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>{setor.telefone || '—'}</td>
