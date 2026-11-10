@@ -16,6 +16,11 @@ public interface OrdemServicoRepository extends JpaRepository<OrdemServico, Long
         long getTotal();
     }
 
+    interface TotalPorUsuario {
+        Long getUsuarioId();
+        long getTotal();
+    }
+
     @Query("""
             select os.equipamentoId as equipamentoId, count(os) as total
             from OrdemServico os
@@ -27,20 +32,34 @@ public interface OrdemServicoRepository extends JpaRepository<OrdemServico, Long
 
     long countByEquipamentoIdAndStatus(Long equipamentoId, StatusOs status);
 
+    @Query(value = """
+            select aberto_por_id as \"usuarioId\", count(*) as total
+            from ordem_servico
+            where aberto_por_id in (:usuarioIds)
+            group by aberto_por_id
+            """, nativeQuery = true)
+    List<TotalPorUsuario> contarChamadosAbertosPorUsuario(@Param("usuarioIds") List<Long> usuarioIds);
+
+    @Query(value = "select count(*) from ordem_servico where aberto_por_id = :usuarioId", nativeQuery = true)
+    long contarChamadosCriadosPorUsuario(@Param("usuarioId") Long usuarioId);
+
     @Override
     @EntityGraph(attributePaths = {"setor", "solicitante", "abertoPor"})
-    Optional<OrdemServico> findById(Long id);
+    @Query("select os from OrdemServico os where os.id = :id and os.excluidaEm is null")
+    Optional<OrdemServico> findById(@Param("id") Long id);
 
     @EntityGraph(attributePaths = {"setor", "solicitante", "abertoPor"})
-    List<OrdemServico> findAllByOrderByAbertaEmDesc();
+    List<OrdemServico> findAllByExcluidaEmIsNullOrderByAbertaEmDesc();
 
     @EntityGraph(attributePaths = {"setor", "solicitante", "abertoPor"})
-    List<OrdemServico> findBySolicitanteIdOrderByAbertaEmDesc(Long solicitanteId);
+    List<OrdemServico> findBySolicitanteIdAndExcluidaEmIsNullOrderByAbertaEmDesc(Long solicitanteId);
 
     @Query(value = """
             select vinculo.os_id
             from os_tecnico vinculo
-            where vinculo.tecnico_id = :tecnicoId
+            join ordem_servico os on os.id = vinculo.os_id
+            where os.excluida_em is null
+              and vinculo.tecnico_id = :tecnicoId
               and vinculo.saida_em is null
             """, nativeQuery = true)
     List<Long> buscarIdsPorTecnicoAtivo(@Param("tecnicoId") Long tecnicoId);
@@ -48,7 +67,7 @@ public interface OrdemServicoRepository extends JpaRepository<OrdemServico, Long
     @EntityGraph(attributePaths = {"setor", "solicitante", "abertoPor"})
     @Query("""
             select os from OrdemServico os
-            where os.id in :ids
+            where os.excluidaEm is null and os.id in :ids
             order by os.abertaEm desc, os.id desc
             """)
     List<OrdemServico> buscarPorIds(@Param("ids") List<Long> ids);
