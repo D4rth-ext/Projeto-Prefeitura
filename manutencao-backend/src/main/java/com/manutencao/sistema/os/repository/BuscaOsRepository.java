@@ -22,7 +22,7 @@ public class BuscaOsRepository {
     }
 
     public Resultado buscar(BuscaOsRequest filtro, Usuario usuario) {
-        StringBuilder condicoes = new StringBuilder(" where 1 = 1");
+        StringBuilder condicoes = new StringBuilder(" where os.excluida_em is null");
         MapSqlParameterSource parametros = new MapSqlParameterSource();
 
         if (usuario.getPerfil() == Perfil.SOLICITANTE) {
