@@ -20,12 +20,13 @@ public class BackupOsRepository {
     }
 
     public Optional<BackupOsResponse> buscar(Long osId) {
-        return consultar("where os.id = ?", osId).stream().findFirst();
+        return consultar("where os.id = ? and os.excluida_em is null", osId).stream().findFirst();
     }
 
     public List<BackupOsResponse> descartesPendentes() {
         return consultar("""
-                where backup.solicitado and backup.descartado_em is null
+                where os.excluida_em is null
+                  and backup.solicitado and backup.descartado_em is null
                   and os.entregue_em is not null
                 order by os.entregue_em, os.id
                 """);
