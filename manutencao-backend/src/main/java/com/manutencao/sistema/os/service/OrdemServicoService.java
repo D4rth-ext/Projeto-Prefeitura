@@ -97,9 +97,9 @@ public class OrdemServicoService {
         Usuario usuario = usuarioAutenticado(email);
 
         List<OrdemServico> ordens = switch (usuario.getPerfil()) {
-            case ADMIN, ATENDENTE -> osRepository.findAllByOrderByAbertaEmDesc();
+            case ADMIN, ATENDENTE -> osRepository.findAllByExcluidaEmIsNullOrderByAbertaEmDesc();
             case SOLICITANTE -> osRepository
-                    .findBySolicitanteIdOrderByAbertaEmDesc(usuario.getId());
+                    .findBySolicitanteIdAndExcluidaEmIsNullOrderByAbertaEmDesc(usuario.getId());
             case TECNICO -> listarDoTecnico(usuario.getId());
         };
 
@@ -123,6 +123,18 @@ public class OrdemServicoService {
         }
 
         return OrdemServicoResponse.de(os);
+    }
+
+    @Transactional
+    public void excluir(Long id, String email) {
+        Usuario administrador = usuarioAutenticado(email);
+        if (administrador.getPerfil() != Perfil.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
+        }
+        OrdemServico os = osRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("OS", id));
+        os.excluir(administrador.getId());
+        osRepository.saveAndFlush(os);
     }
 
     private List<OrdemServico> listarDoTecnico(Long tecnicoId) {
