@@ -46,7 +46,7 @@ public class RelatorioOsService {
                         and os.prazo_previsto < :hoje) as atrasadas
                 from ordem_servico os
                 join setor s on s.id = os.setor_id
-                where true
+                where os.excluida_em is null
                 """);
         var parametros = new MapSqlParameterSource("hoje", LocalDate.now(FUSO));
         if (inicio != null) {
