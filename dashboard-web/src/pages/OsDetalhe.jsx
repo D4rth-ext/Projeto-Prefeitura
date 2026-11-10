@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   buscarOrdem, triarOrdem, alterarStatus, listarRegistros, criarRegistro,
-  listarEventos, listarTecnicosDaOs, listarEquipe, editarChamado
+  listarEventos, listarTecnicosDaOs, listarEquipe, editarChamado, excluirOrdem
 } from '../api/ordensServico'
 import { mensagemDeErro } from '../api/erro'
 import StatusBadge from '../components/StatusBadge'
@@ -60,6 +60,7 @@ function Linha({ rotuloCampo, children }) {
 
 export default function OsDetalhe() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { usuario } = useAuth()
   const perfil = usuario?.perfil
   const ehEquipe = perfil && perfil !== 'SOLICITANTE'
@@ -72,6 +73,8 @@ export default function OsDetalhe() {
   const [eventos, setEventos] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(null)
+  const [excluindo, setExcluindo] = useState(false)
+  const [erroExclusao, setErroExclusao] = useState(null)
 
   // --- ação de status ---
   const [transicao, setTransicao] = useState(null)
@@ -127,6 +130,20 @@ export default function OsDetalhe() {
   useEffect(() => {
     if (ehGestao) listarEquipe().then((l) => setEquipe(l.filter((u) => u.perfil === 'TECNICO'))).catch(() => setEquipe([]))
   }, [ehGestao])
+
+  async function excluirChamado() {
+    if (!window.confirm(`Excluir o chamado #${os.id}? Ele sairá das listas, mas o histórico do equipamento e a contagem de chamados serão preservados.`)) return
+    setExcluindo(true)
+    setErroExclusao(null)
+    try {
+      await excluirOrdem(os.id)
+      navigate('/ordens-servico', { replace: true })
+    } catch (err) {
+      setErroExclusao(mensagemDeErro(err, 'Não foi possível excluir o chamado.'))
+    } finally {
+      setExcluindo(false)
+    }
+  }
 
   if (carregando) return <div className="content"><p style={{ color: 'var(--text-secondary)' }}>Carregando...</p></div>
   if (erro) return (
@@ -531,6 +548,10 @@ export default function OsDetalhe() {
         <details className="more-actions"><summary>Mais ações</summary><div className="more-actions-menu">
           {['ADMIN', 'TECNICO'].includes(perfil) && !encerrada && os.status !== 'FINALIZADO' && <button type="button" className="btn-secondary" onClick={() => escolherAba('prazo')}>Alterar prazo</button>}
           {transicoes.filter(t => !['FINALIZADO', 'ENTREGUE'].includes(t.para) && !(t.para === 'EM_ANALISE' && os.status !== 'FINALIZADO')).map(t => <button type="button" className="btn-secondary" key={t.rotulo} onClick={() => abrirTransicao(t)}>{t.rotulo}</button>)}
+          {perfil === 'ADMIN' && <>
+            <button type="button" className="btn-secondary" style={{ color: 'var(--red)' }} disabled={excluindo} onClick={excluirChamado}>{excluindo ? 'Excluindo...' : 'Excluir chamado'}</button>
+            {erroExclusao && <p role="alert" style={{ color: 'var(--red)', fontSize: 12 }}>{erroExclusao}</p>}
+          </>}
         </div></details>
         <div className="actions">
           {!encerrada && <button type="button" className="btn-secondary" onClick={() => { setRegistrando(true); setMsgRegistro(null) }}>Registrar atendimento</button>}
