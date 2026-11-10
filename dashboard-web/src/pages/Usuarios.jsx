@@ -228,7 +228,7 @@ export default function Usuarios() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--page-bg)' }}>
-                    {['Nome', 'E-mail', 'Perfil', 'Setor', 'Situação', ''].map((col) => (
+                    {['Nome', 'E-mail', 'Perfil', 'Setor', ...(aba === 'FUNCIONARIOS' ? ['Chamados abertos'] : []), 'Situação', ''].map((col) => (
                       <th key={col} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
                         {col}
                       </th>
@@ -244,6 +244,7 @@ export default function Usuarios() {
                         <td style={{ ...celula, color: 'var(--text-secondary)' }}>{u.email}</td>
                         <td style={celula}>{LABEL_PERFIL[u.perfil] || u.perfil}</td>
                         <td style={{ ...celula, color: 'var(--text-secondary)' }}>{u.setor?.nome || '—'}</td>
+                        {aba === 'FUNCIONARIOS' && <td style={celula}>{u.chamadosAbertos ?? 0}</td>}
                         <td style={celula}>
                           <span className={`badge ${u.ativo ? 'badge-finalizado' : 'badge-entregue'}`}>{u.ativo ? 'Ativo' : 'Excluído'}</span>
                         </td>
