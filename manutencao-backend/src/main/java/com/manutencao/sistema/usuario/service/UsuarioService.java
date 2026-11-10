@@ -3,6 +3,8 @@ package com.manutencao.sistema.usuario.service;
 import com.manutencao.sistema.common.exception.ConflitoException;
 import com.manutencao.sistema.common.exception.RecursoNaoEncontradoException;
 import com.manutencao.sistema.common.exception.RegraNegocioException;
+import com.manutencao.sistema.os.repository.OrdemServicoRepository;
+import com.manutencao.sistema.os.repository.OrdemServicoRepository.TotalPorUsuario;
 import com.manutencao.sistema.setor.domain.Setor;
 import com.manutencao.sistema.setor.repository.SetorRepository;
 import com.manutencao.sistema.usuario.domain.Perfil;
@@ -16,6 +18,8 @@ import com.manutencao.sistema.usuario.repository.UsuarioRepository;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.manutencao.sistema.os.service.AcessoOsService;
@@ -29,16 +33,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final OrdemServicoRepository ordemServicoRepository;
     private final SetorRepository setorRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbc;
     private final AcessoOsService acesso;
     private final EntityManager entityManager;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, SetorRepository setorRepository,
+    public UsuarioService(UsuarioRepository usuarioRepository, OrdemServicoRepository ordemServicoRepository,
+                          SetorRepository setorRepository,
                           PasswordEncoder passwordEncoder, JdbcTemplate jdbc, AcessoOsService acesso,
                           EntityManager entityManager) {
         this.usuarioRepository = usuarioRepository;
+        this.ordemServicoRepository = ordemServicoRepository;
         this.setorRepository = setorRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbc = jdbc;
@@ -47,7 +54,17 @@ public class UsuarioService {
     }
 
     public List<UsuarioResponse> listar() {
-        return usuarioRepository.findAll().stream().map(UsuarioResponse::de).toList();
+        List<Usuario> usuarios = usuarioRepository.findAll();
+        List<Long> solicitanteIds = usuarios.stream()
+                .filter(u -> u.getPerfil() == Perfil.SOLICITANTE)
+                .map(Usuario::getId)
+                .toList();
+        Map<Long, Long> chamadosAbertos = solicitanteIds.isEmpty() ? Map.of()
+                : ordemServicoRepository.contarChamadosAbertosPorUsuario(solicitanteIds).stream()
+                        .collect(Collectors.toMap(TotalPorUsuario::getUsuarioId, TotalPorUsuario::getTotal));
+        return usuarios.stream()
+                .map(u -> UsuarioResponse.de(u, chamadosAbertos.getOrDefault(u.getId(), 0L)))
+                .toList();
     }
 
     public List<SolicitanteResumoResponse> listarSolicitantes(Long setorId, String busca, String email) {
@@ -170,7 +187,9 @@ public class UsuarioService {
             throw new RegraNegocioException("O setor informado está inativo.");
         }
         usuario.alterarSetor(setor);
-        return UsuarioResponse.de(usuarioRepository.saveAndFlush(usuario));
+        Usuario atualizado = usuarioRepository.saveAndFlush(usuario);
+        long chamadosAbertos = ordemServicoRepository.contarChamadosCriadosPorUsuario(atualizado.getId());
+        return UsuarioResponse.de(atualizado, chamadosAbertos);
     }
 
     private Usuario obterParaAlteracao(Long id) {
@@ -187,7 +206,8 @@ public class UsuarioService {
         // deixem uma OS em análise sem nenhum técnico ativo.
         List<Long> ids = jdbc.queryForList("""
                 select os.id from ordem_servico os
-                where exists (select 1 from os_tecnico vinculo
+                where os.excluida_em is null
+                  and exists (select 1 from os_tecnico vinculo
                     where vinculo.os_id = os.id and vinculo.tecnico_id = ?
                       and vinculo.saida_em is null)
                 order by os.id for update
