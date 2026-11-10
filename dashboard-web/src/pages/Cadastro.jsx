@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { buscarSetoresPublicos } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
+import CampoComLista from '../components/CampoComLista'
+import { telefoneDoSetor } from '../utils/catalogoSetores'
 
 export default function Cadastro() {
   const { cadastrar } = useAuth()
   const navigate = useNavigate()
 
   const [setores, setSetores] = useState([])
+  const [setorNome, setSetorNome] = useState('')
   const [form, setForm] = useState({ nome: '', email: '', senha: '', confirmarSenha: '', telefone: '', setorId: '' })
   const [erro, setErro] = useState(null)
   const [enviando, setEnviando] = useState(false)
@@ -22,9 +25,24 @@ export default function Cadastro() {
     setForm((f) => ({ ...f, [nome]: valor }))
   }
 
+  function alterarSetor(nome) {
+    setSetorNome(nome)
+    campo('setorId', '')
+  }
+
+  function selecionarSetor(nome) {
+    const setor = setores.find((item) => item.nome === nome)
+    setSetorNome(nome)
+    campo('setorId', setor ? String(setor.id) : '')
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setErro(null)
+    if (!form.setorId) {
+      setErro('Selecione um setor da lista.')
+      return
+    }
     setEnviando(true)
     try {
       await cadastrar(form)
@@ -51,13 +69,18 @@ export default function Cadastro() {
         </div>
 
         <div className="field" style={{ marginBottom: 14 }}>
-          <label>Setor de origem</label>
-          <select value={form.setorId} onChange={(e) => campo('setorId', e.target.value)} required>
-            <option value="">Selecione seu setor</option>
-            {setores.map((s) => (
-              <option key={s.id} value={s.id}>{s.nome}</option>
-            ))}
-          </select>
+          <label htmlFor="setor-origem">Setor de origem</label>
+          <CampoComLista
+            id="setor-origem"
+            nomeLista="setores"
+            itens={setores.map((setor) => setor.nome)}
+            valor={setorNome}
+            alterar={alterarSetor}
+            selecionar={selecionarSetor}
+            obrigatorio
+            ramalPorItem={telefoneDoSetor}
+            mensagemSemResultado="Nenhum setor encontrado. Escolha um da lista."
+          />
         </div>
 
         <div className="field" style={{ marginBottom: 14 }}>
