@@ -3,6 +3,8 @@ import { buscarUsuarios, criarUsuario, inativarUsuario, alterarSetorUsuario } fr
 import { buscarSetoresPublicos } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
 import { useAuth } from '../context/AuthContext'
+import CampoComLista from '../components/CampoComLista'
+import { telefoneDoSetor } from '../utils/catalogoSetores'
 
 const VAZIO = { nome: '', email: '', senha: '', perfil: 'ATENDENTE' }
 
@@ -29,11 +31,12 @@ export default function Usuarios() {
   const [funcionario, setFuncionario] = useState(null)
   const [setoresAtivos, setSetoresAtivos] = useState([])
   const [novoSetor, setNovoSetor] = useState('')
+  const [novoSetorNome, setNovoSetorNome] = useState('')
   const [ocupadoSetor, setOcupadoSetor] = useState(false)
   const [erroSetor, setErroSetor] = useState('')
 
   async function abrirTroca(u) {
-    setFuncionario(u); setNovoSetor(''); setSetoresAtivos([]); setErroSetor(''); setOcupadoSetor(true)
+    setFuncionario(u); setNovoSetor(''); setNovoSetorNome(''); setSetoresAtivos([]); setErroSetor(''); setOcupadoSetor(true)
     try {
       const setores = await buscarSetoresPublicos()
       setSetoresAtivos(setores.filter(s => s.id !== u.setor?.id))
@@ -191,10 +194,22 @@ export default function Usuarios() {
           <p>Setor atual: {funcionario.setor?.nome || 'Não informado'}. A mudança vale para novos chamados.</p>
           <div className="field">
             <label htmlFor="novo-setor-funcionario">Novo setor</label>
-            <select id="novo-setor-funcionario" required disabled={ocupadoSetor} value={novoSetor} onChange={e => setNovoSetor(e.target.value)}>
-              <option value="">Selecione um setor ativo</option>
-              {setoresAtivos.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}
-            </select>
+            <CampoComLista
+              id="novo-setor-funcionario"
+              nomeLista="setores ativos"
+              itens={setoresAtivos.map((setor) => setor.nome)}
+              valor={novoSetorNome}
+              alterar={(nome) => { setNovoSetorNome(nome); setNovoSetor('') }}
+              selecionar={(nome) => {
+                const setor = setoresAtivos.find((item) => item.nome === nome)
+                setNovoSetorNome(nome)
+                setNovoSetor(setor ? String(setor.id) : '')
+              }}
+              obrigatorio
+              desabilitado={ocupadoSetor}
+              ramalPorItem={telefoneDoSetor}
+              mensagemSemResultado="Nenhum setor encontrado. Escolha um da lista."
+            />
           </div>
           {erroSetor && <p className="erro" role="alert">{erroSetor}</p>}
           {!ocupadoSetor && !erroSetor && !setoresAtivos.length && <p>Nenhum outro setor ativo disponível.</p>}
