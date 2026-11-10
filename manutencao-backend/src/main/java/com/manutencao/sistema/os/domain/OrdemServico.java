@@ -70,6 +70,12 @@ public class OrdemServico {
     @Column(nullable = false)
     private Long versao;
 
+    @Column(name = "excluida_em")
+    private Instant excluidaEm;
+
+    @Column(name = "excluida_por_id")
+    private Long excluidaPorId;
+
     @Column(name = "atualizado_em", nullable = false)
     private Instant atualizadoEm;
 
@@ -199,6 +205,12 @@ public class OrdemServico {
             registrarDevolucao(responsavel);
         }
         alterarStatus(StatusOs.CANCELADO);
+    }
+
+    public void excluir(Long administradorId) {
+        this.excluidaEm = Instant.now();
+        this.excluidaPorId = administradorId;
+        registrarAlteracao();
     }
 
     public void registrarAlteracao() {
