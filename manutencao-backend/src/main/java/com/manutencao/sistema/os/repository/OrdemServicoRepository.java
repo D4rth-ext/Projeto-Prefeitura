@@ -1,5 +1,6 @@
 package com.manutencao.sistema.os.repository;
 
+import com.manutencao.sistema.equipamento.domain.Equipamento;
 import com.manutencao.sistema.os.domain.OrdemServico;
 import com.manutencao.sistema.os.domain.StatusOs;
 import java.util.List;
@@ -22,15 +23,22 @@ public interface OrdemServicoRepository extends JpaRepository<OrdemServico, Long
     }
 
     @Query("""
-            select os.equipamentoId as equipamentoId, count(os) as total
-            from OrdemServico os
-            where os.status = :status and os.equipamentoId in :equipamentoIds
-            group by os.equipamentoId
+            select equipamento.id as equipamentoId, count(distinct os.id) as total
+            from Equipamento equipamento, OrdemServico os
+            where equipamento.id in :equipamentoIds
+              and os.status in :statuses
+              and os.excluidaEm is null
+              and (
+                  os.equipamentoId = equipamento.id
+                  or (equipamento.patrimonio is not null
+                      and upper(trim(os.patrimonioInformado)) = upper(trim(equipamento.patrimonio)))
+                  or (equipamento.numeroSerie is not null
+                      and upper(trim(os.patrimonioInformado)) = upper(trim(equipamento.numeroSerie)))
+              )
+            group by equipamento.id
             """)
     List<TotalPorEquipamento> contarPorEquipamento(
-            @Param("equipamentoIds") List<Long> equipamentoIds, @Param("status") StatusOs status);
-
-    long countByEquipamentoIdAndStatus(Long equipamentoId, StatusOs status);
+            @Param("equipamentoIds") List<Long> equipamentoIds, @Param("statuses") List<StatusOs> statuses);
 
     @Query(value = """
             select aberto_por_id as \"usuarioId\", count(*) as total
@@ -85,3 +93,4 @@ public interface OrdemServicoRepository extends JpaRepository<OrdemServico, Long
             @Param("tecnicoId") Long tecnicoId
     );
 }
+
