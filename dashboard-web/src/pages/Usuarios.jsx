@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { buscarUsuarios, criarUsuario, inativarUsuario, alterarSetorUsuario } from '../api/usuarios'
+import { buscarUsuarios, criarUsuario, inativarUsuario, alterarSetorUsuario, redefinirSenhaUsuario } from '../api/usuarios'
 import { buscarSetoresPublicos } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
 import { useAuth } from '../context/AuthContext'
@@ -34,6 +34,42 @@ export default function Usuarios() {
   const [novoSetorNome, setNovoSetorNome] = useState('')
   const [ocupadoSetor, setOcupadoSetor] = useState(false)
   const [erroSetor, setErroSetor] = useState('')
+  const [alvoSenha, setAlvoSenha] = useState(null)
+  const [formSenha, setFormSenha] = useState({ senhaAtual: '', novaSenha: '', confirmarSenha: '' })
+  const [salvandoSenha, setSalvandoSenha] = useState(false)
+  const [erroSenha, setErroSenha] = useState('')
+  const [sucessoSenha, setSucessoSenha] = useState('')
+
+  function abrirRedefinicaoSenha(u) {
+    setAlvoSenha(u)
+    setFormSenha({ senhaAtual: '', novaSenha: '', confirmarSenha: '' })
+    setErroSenha('')
+    setSucessoSenha('')
+  }
+
+  async function salvarRedefinicaoSenha(e) {
+    e.preventDefault()
+    setErroSenha('')
+    if (formSenha.novaSenha !== formSenha.confirmarSenha) {
+      setErroSenha('As senhas não coincidem.')
+      return
+    }
+    setSalvandoSenha(true)
+    try {
+      const dados = {
+        novaSenha: formSenha.novaSenha,
+        confirmarSenha: formSenha.confirmarSenha
+      }
+      if (alvoSenha.email?.toLowerCase() === logado?.email?.toLowerCase()) dados.senhaAtual = formSenha.senhaAtual
+      await redefinirSenhaUsuario(alvoSenha.id, dados)
+      setSucessoSenha(`Senha de ${alvoSenha.nome} redefinida com sucesso.`)
+      setAlvoSenha(null)
+    } catch (err) {
+      setErroSenha(mensagemDeErro(err, 'Não foi possível redefinir a senha.'))
+    } finally {
+      setSalvandoSenha(false)
+    }
+  }
 
   async function abrirTroca(u) {
     setFuncionario(u); setNovoSetor(''); setNovoSetorNome(''); setSetoresAtivos([]); setErroSetor(''); setOcupadoSetor(true)
@@ -215,6 +251,27 @@ export default function Usuarios() {
           {!ocupadoSetor && !erroSetor && !setoresAtivos.length && <p>Nenhum outro setor ativo disponível.</p>}
           <div className="actions"><button className="btn-primary" disabled={ocupadoSetor || !novoSetor}>Salvar setor</button><button type="button" className="btn-secondary" disabled={ocupadoSetor} onClick={() => setFuncionario(null)}>Cancelar</button></div>
         </form>}
+        {alvoSenha && <form className="card" onSubmit={salvarRedefinicaoSenha} style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 420 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Redefinir senha de {alvoSenha.nome}</h2>
+          {alvoSenha.email?.toLowerCase() === logado?.email?.toLowerCase() && <div className="field">
+            <label htmlFor="senha-atual-usuario">Senha atual</label>
+            <input id="senha-atual-usuario" type="password" autoComplete="current-password" value={formSenha.senhaAtual} onChange={e => setFormSenha(f => ({ ...f, senhaAtual: e.target.value }))} required disabled={salvandoSenha} />
+          </div>}
+          <div className="field">
+            <label htmlFor="nova-senha-usuario">Nova senha</label>
+            <input id="nova-senha-usuario" type="password" autoComplete="new-password" value={formSenha.novaSenha} onChange={e => setFormSenha(f => ({ ...f, novaSenha: e.target.value }))} minLength={8} pattern="^(?=.*[A-Za-z])(?=.*\d).{8,}$" title="Mínimo 8 caracteres, com letra e número" required disabled={salvandoSenha} />
+          </div>
+          <div className="field">
+            <label htmlFor="confirmar-senha-usuario">Confirmar nova senha</label>
+            <input id="confirmar-senha-usuario" type="password" autoComplete="new-password" value={formSenha.confirmarSenha} onChange={e => setFormSenha(f => ({ ...f, confirmarSenha: e.target.value }))} required disabled={salvandoSenha} />
+          </div>
+          {erroSenha && <p role="alert" style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}>{erroSenha}</p>}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="submit" className="btn-primary" disabled={salvandoSenha}>{salvandoSenha ? 'Salvando...' : 'Salvar nova senha'}</button>
+            <button type="button" className="btn-secondary" onClick={() => { setAlvoSenha(null); setErroSenha('') }} disabled={salvandoSenha}>Cancelar</button>
+          </div>
+        </form>}
+        {sucessoSenha && <p role="status" style={{ color: 'var(--green)', fontSize: 13 }}>{sucessoSenha}</p>}
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           {carregando && <p style={{ padding: 18, color: 'var(--text-secondary)' }}>Carregando...</p>}
           {erro && <p style={{ padding: 18, color: 'var(--red)' }}>{erro}</p>}
@@ -250,6 +307,7 @@ export default function Usuarios() {
                         </td>
                         <td style={{ ...celula, textAlign: 'right', whiteSpace: 'nowrap' }}>
                           {u.ativo && u.perfil === 'SOLICITANTE' && <button type="button" className="btn-secondary" disabled={ocupadoSetor} onClick={() => abrirTroca(u)}>Alterar setor</button>}
+                          {u.ativo && <button type="button" className="btn-secondary" onClick={() => abrirRedefinicaoSenha(u)} title={`Redefinir senha de ${u.nome}`} style={{ marginRight: 8 }}><i className="ti ti-key" /> Redefinir senha</button>}
                           {u.ativo && !ehVoce && (
                             <button onClick={() => handleExcluir(u)} title="Excluir" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 12, color: 'var(--red)' }}>
                               <i className="ti ti-trash" /> Excluir
@@ -268,3 +326,4 @@ export default function Usuarios() {
     </div>
   )
 }
+
