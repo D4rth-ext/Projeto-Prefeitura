@@ -60,7 +60,7 @@ export default function CamposChamado({ form, campo }) {
         </div>
         <div className="field">
           <label>Melhor horário</label>
-          <input type="text" maxLength={100} placeholder="Ex: manhãs" value={form.melhorHorario}
+          <input type="text" maxLength={100} placeholder="Exemplo 08:00 hrs" value={form.melhorHorario}
             onChange={(e) => campo('melhorHorario', e.target.value)} />
         </div>
       </div>
@@ -68,3 +68,4 @@ export default function CamposChamado({ form, campo }) {
     </>
   )
 }
+
