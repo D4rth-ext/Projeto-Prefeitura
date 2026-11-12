@@ -127,13 +127,19 @@ public class OrdemServicoService {
 
     @Transactional
     public void excluir(Long id, String email) {
-        Usuario administrador = usuarioAutenticado(email);
-        if (administrador.getPerfil() != Perfil.ADMIN) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
-        }
+        Usuario autor = usuarioAutenticado(email);
         OrdemServico os = osRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("OS", id));
-        os.excluir(administrador.getId());
+
+        boolean ehAdministrador = autor.getPerfil() == Perfil.ADMIN;
+        boolean ehSolicitanteDaOs = autor.getPerfil() == Perfil.SOLICITANTE
+                && os.getSolicitante().getId().equals(autor.getId());
+        if (!ehAdministrador && !ehSolicitanteDaOs) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Você só pode excluir chamados abertos por você.");
+        }
+
+        os.excluir(autor.getId());
         osRepository.saveAndFlush(os);
     }
 
@@ -200,3 +206,4 @@ public class OrdemServicoService {
         return usuario;
     }
 }
+
