@@ -4,6 +4,11 @@ export function alterarSetorUsuario(id, setorId) {
   return api.patch(`/usuarios/${id}/setor`, { setorId }).then(r => r.data)
 }
 
+// PATCH /usuarios/:id/senha — Admin redefine a senha de outro usuário.
+export function redefinirSenhaUsuario(id, dados) {
+  return api.patch(`/usuarios/${id}/senha`, dados)
+}
+
 // GET /usuarios — só ADMIN. Lista toda a equipe (e solicitantes, se vierem juntos)
 export function buscarUsuarios() {
   return api.get('/usuarios').then((r) => r.data)
@@ -23,3 +28,4 @@ export function criarUsuario({ nome, email, senha, perfil }) {
 export function inativarUsuario(id) {
   return api.delete(`/usuarios/${id}`)
 }
+
