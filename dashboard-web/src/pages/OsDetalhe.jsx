@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   buscarOrdem, triarOrdem, alterarStatus, listarRegistros, criarRegistro,
-  listarEventos, listarTecnicosDaOs, listarEquipe, editarChamado
+  listarEventos, listarTecnicosDaOs, listarEquipe, editarChamado, listarHistoricoStatus, listarHistoricoTecnicos, excluirOrdem
 } from '../api/ordensServico'
 import { mensagemDeErro } from '../api/erro'
 import StatusBadge from '../components/StatusBadge'
@@ -60,6 +60,7 @@ function Linha({ rotuloCampo, children }) {
 
 export default function OsDetalhe() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { usuario } = useAuth()
   const perfil = usuario?.perfil
   const ehEquipe = perfil && perfil !== 'SOLICITANTE'
@@ -70,6 +71,8 @@ export default function OsDetalhe() {
   const [registrando, setRegistrando] = useState(false)
   const [registros, setRegistros] = useState([])
   const [eventos, setEventos] = useState([])
+  const [historicoStatus, setHistoricoStatus] = useState([])
+  const [historicoTecnicos, setHistoricoTecnicos] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(null)
 
@@ -91,11 +94,19 @@ export default function OsDetalhe() {
   const [formEdicao, setFormEdicao] = useState(null)
   const [msgEdicao, setMsgEdicao] = useState(null)
   const [enviandoEdicao, setEnviandoEdicao] = useState(false)
+  const [cancelandoSolicitacao, setCancelandoSolicitacao] = useState(false)
+  const [motivoCancelamento, setMotivoCancelamento] = useState('')
+  const [msgCancelamento, setMsgCancelamento] = useState('')
 
   // --- registros ---
   const [novoRegistro, setNovoRegistro] = useState({ tipo: 'OBSERVACAO', texto: '' })
   const [msgRegistro, setMsgRegistro] = useState(null)
   const [enviandoRegistro, setEnviandoRegistro] = useState(false)
+  const [observacao, setObservacao] = useState('')
+  const [msgObservacao, setMsgObservacao] = useState('')
+  const [enviandoObservacao, setEnviandoObservacao] = useState(false)
+  const [msgExclusao, setMsgExclusao] = useState('')
+  const [excluindo, setExcluindo] = useState(false)
 
   const carregar = useCallback(async () => {
     setErro(null)
@@ -103,7 +114,9 @@ export default function OsDetalhe() {
       const dados = await buscarOrdem(id)
       setOs(dados)
       setRegistros(await listarRegistros(id))
+      setHistoricoStatus(await listarHistoricoStatus(id).catch(() => []))
       if (ehEquipe) setEventos(await listarEventos(id).catch(() => []))
+      if (ehEquipe) setHistoricoTecnicos(await listarHistoricoTecnicos(id).catch(() => []))
       if (ehEquipe) {
         const ids = await listarTecnicosDaOs(id).catch(() => [])
         setTecnicosAtuais(ids)
@@ -153,6 +166,26 @@ export default function OsDetalhe() {
     return true
   }) : []
   const apontamentos = registros.filter((r) => r.tipo === 'DIAGNOSTICO' || r.tipo === 'ACAO')
+  const podeObservar = perfil === 'SOLICITANTE' && ['RECEBIDO', 'EM_ANALISE', 'AGUARDANDO_PECA'].includes(os.status)
+
+  async function enviarObservacao(e) {
+    e.preventDefault()
+    setEnviandoObservacao(true); setMsgObservacao('')
+    try {
+      await criarRegistro(id, { tipo: 'OBSERVACAO_SOLICITANTE', texto: observacao, versao: os.versao })
+      setObservacao('')
+      await carregar()
+    } catch (err) { setMsgObservacao(mensagemDeErro(err, 'Não foi possível enviar a observação.')) }
+    finally { setEnviandoObservacao(false) }
+  }
+
+  async function removerOrdem() {
+    if (!confirm(`Excluir a OS #${os.id}? Ela será ocultada das consultas comuns e mantida no histórico.`)) return
+    setExcluindo(true); setMsgExclusao('')
+    try { await excluirOrdem(id); navigate('/', { replace: true }) }
+    catch (err) { setMsgExclusao(mensagemDeErro(err, 'Não foi possível excluir a OS.')) }
+    finally { setExcluindo(false) }
+  }
 
   function abrirTransicao(t) {
     setRegistrando(false)
@@ -173,6 +206,7 @@ export default function OsDetalhe() {
     try {
       setOs(await alterarStatus(id, corpo))
       setEventos(await listarEventos(id).catch(() => []))
+      setHistoricoStatus(await listarHistoricoStatus(id).catch(() => []))
       setTransicao(null)
       setAba('atendimento')
     } catch (err) {
@@ -199,6 +233,7 @@ export default function OsDetalhe() {
       setOs(await triarOrdem(id, corpo))
       setTecnicosAtuais(triagem.tecnicosIds)
       setEventos(await listarEventos(id).catch(() => []))
+      setHistoricoTecnicos(await listarHistoricoTecnicos(id).catch(() => []))
       setMsgTriagem({ ok: true, texto: 'Triagem salva.' })
     } catch (err) {
       setMsgTriagem({ ok: false, texto: mensagemDeErro(err, 'Não foi possível salvar a triagem.') })
@@ -250,12 +285,7 @@ export default function OsDetalhe() {
       setOs(await editarChamado(id, corpo))
       setEditando(false)
     } catch (err) {
-      const status = err.response?.status
-      setMsgEdicao(
-        status === 404 || status === 405
-          ? 'A edição de chamado ainda não está disponível no servidor (rota pendente no backend).'
-          : mensagemDeErro(err, 'Não foi possível salvar as alterações.')
-      )
+      setMsgEdicao(mensagemDeErro(err, 'Não foi possível salvar as alterações.'))
     } finally {
       setEnviandoEdicao(false)
     }
@@ -269,7 +299,21 @@ export default function OsDetalhe() {
   }
 
   // O próprio solicitante pode corrigir o chamado enquanto ele não foi triado
-  const podeEditarChamado = false // A API atual ainda não oferece edição da solicitação.
+  const podeEditarChamado = os.status === 'RECEBIDO' && os.modalidade === 'A_DEFINIR'
+    && (perfil === 'SOLICITANTE' || ehGestao)
+  const podeCancelarPresencial = perfil === 'SOLICITANTE' && os.status === 'RECEBIDO'
+    && os.modalidade === 'PRESENCIAL' && !os.recebidoEm
+
+  async function cancelarPresencial(e) {
+    e.preventDefault()
+    setMsgCancelamento('')
+    try {
+      setOs(await alterarStatus(id, { status: 'CANCELADO', justificativa: motivoCancelamento, versao: os.versao }))
+      setCancelandoSolicitacao(false)
+    } catch (err) {
+      setMsgCancelamento(mensagemDeErro(err, 'Não foi possível cancelar o chamado.'))
+    }
+  }
 
   const removendoTecnico = tecnicosAtuais.some((tid) => !triagem.tecnicosIds.includes(tid))
 
@@ -292,6 +336,10 @@ export default function OsDetalhe() {
       </header>
 
       <nav className="os-tabs content" aria-label="Seções do chamado">{abas.map(([key, label]) => <button key={key} type="button" className="tab-button" aria-pressed={aba === key} onClick={() => escolherAba(key)}>{label}</button>)}</nav>
+      {perfil === 'ADMIN' && <div className="content" style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 0 }}>
+        {msgExclusao && <p role="alert" className="erro">{msgExclusao}</p>}
+        <button type="button" className="btn-secondary" disabled={excluindo} onClick={removerOrdem}>{excluindo ? 'Excluindo…' : 'Excluir OS'}</button>
+      </div>}
       <div className={`content os-detail-grid ${ehEquipe ? '' : 'os-detail-grid-requester'}`}>
 
         {/* ---------- coluna esquerda ---------- */}
@@ -355,6 +403,9 @@ export default function OsDetalhe() {
 
           <section className="card" hidden={aba !== 'atendimento'}>
             <h2 style={{ fontSize: 14, fontWeight: 500, margin: '0 0 14px' }}>Registros do atendimento</h2>
+            <h3 style={{ fontSize: 13 }}>Histórico de status</h3>
+            {!historicoStatus.length && <p className="muted">Nenhuma mudança de status registrada.</p>}
+            <ol className="historico-eventos">{historicoStatus.map((h, i) => <li key={`${h.criadoEm}-${i}`}><span className="muted">{formatarDataHora(h.criadoEm)}</span><div>{h.anterior ? `${rotulo({ RECEBIDO: 'Recebido', EM_ANALISE: 'Em análise', AGUARDANDO_PECA: 'Aguardando peça', FINALIZADO: 'Finalizado', ENTREGUE: 'Entregue', CANCELADO: 'Cancelado' }, h.anterior)} → ` : 'Abertura · '}{rotulo({ RECEBIDO: 'Recebido', EM_ANALISE: 'Em análise', AGUARDANDO_PECA: 'Aguardando peça', FINALIZADO: 'Finalizado', ENTREGUE: 'Entregue', CANCELADO: 'Cancelado' }, h.status)}</div></li>)}</ol>
             {registros.length === 0 && <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Nenhum registro ainda.</p>}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {registros.map((r) => (
@@ -366,6 +417,21 @@ export default function OsDetalhe() {
                 </div>
               ))}
             </div>
+
+            {podeObservar && <form onSubmit={enviarObservacao} className="form-stack" style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <h3 style={{ margin: 0 }}>Adicionar observação</h3>
+              <p className="muted">A descrição original do chamado será mantida; sua observação ficará registrada na linha do tempo.</p>
+              <textarea required maxLength={2000} rows={3} value={observacao} onChange={e => setObservacao(e.target.value)} placeholder="Escreva uma informação complementar" />
+              {msgObservacao && <p role="alert" className="erro">{msgObservacao}</p>}
+              <button className="btn-primary" disabled={enviandoObservacao || !observacao.trim()}>{enviandoObservacao ? 'Enviando…' : 'Enviar observação'}</button>
+            </form>}
+
+            {podeCancelarPresencial && !cancelandoSolicitacao && <button type="button" className="btn-secondary" onClick={() => setCancelandoSolicitacao(true)}>Cancelar chamado presencial</button>}
+            {podeCancelarPresencial && cancelandoSolicitacao && <form onSubmit={cancelarPresencial} className="form-stack">
+              <label className="field">Motivo do cancelamento<textarea required value={motivoCancelamento} onChange={e => setMotivoCancelamento(e.target.value)} /></label>
+              {msgCancelamento && <p role="alert" className="erro">{msgCancelamento}</p>}
+              <div><button className="btn-primary" type="submit">Confirmar cancelamento</button> <button className="btn-secondary" type="button" onClick={() => setCancelandoSolicitacao(false)}>Voltar</button></div>
+            </form>}
 
             {ehEquipe && !encerrada && registrando && (
               <form id="registro-os" onSubmit={enviarRegistro} style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -522,6 +588,12 @@ export default function OsDetalhe() {
                   </div>
                 ))}
               </div>
+              <h3>Vínculos de técnicos</h3>
+              {!historicoTecnicos.length && <p className="muted">Nenhum vínculo registrado.</p>}
+              <ol className="historico-eventos">{historicoTecnicos.map(v => <li key={v.id}>
+                <span className="muted">{formatarDataHora(v.entradaEm)}{v.saidaEm ? ` – ${formatarDataHora(v.saidaEm)}` : ' – vínculo ativo'}</span>
+                <div>{v.tecnicoNome}{v.motivoSaida ? ` · ${v.motivoSaida}` : ''}</div>
+              </li>)}</ol>
             </section>
           )}
         </aside>

@@ -9,11 +9,27 @@ export function buscarUsuarios() {
   return api.get('/usuarios').then((r) => r.data)
 }
 
+export function buscarCadastrosPendentes() {
+  return api.get('/usuarios/cadastros-pendentes').then((r) => r.data)
+}
+
+export function decidirCadastro(id, decisao) {
+  return api.patch(`/usuarios/${id}/cadastro`, { decisao }).then((r) => r.data)
+}
+
 // POST /usuarios — só ADMIN. Cria Técnico, Atendente ou outro Admin.
 // perfil aceita só ADMIN | ATENDENTE | TECNICO (nunca SOLICITANTE — isso é
 // exclusivo do autocadastro em /auth/registro).
-export function criarUsuario({ nome, email, senha, perfil }) {
-  return api.post('/usuarios', { nome, email, senha, perfil }).then((r) => r.data)
+export function criarUsuario({ nome, email, senha, perfil, telefone }) {
+  return api.post('/usuarios', { nome, email, senha, perfil, telefone }).then((r) => r.data)
+}
+
+export function editarUsuario(id, dados) {
+  return api.put(`/usuarios/${id}`, dados).then((r) => r.data)
+}
+
+export function redefinirSenhaUsuario(id) {
+  return api.patch(`/usuarios/${id}/senha`).then((r) => r.data)
 }
 
 // DELETE /usuarios/:id — só ADMIN. Na prática INATIVA a conta (não apaga do

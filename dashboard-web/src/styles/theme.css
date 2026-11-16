@@ -403,3 +403,28 @@ h2 { font-size: 16px; line-height: 1.35; letter-spacing: -.01em; font-weight: 70
   input, select, textarea { font-size: 16px !important; }
   .action-footer .btn-primary { width: 100%; } .ticket-stats p { overflow-wrap: anywhere; }
 }
+@media print {
+  .sidebar,
+  .no-print {
+    display: none !important;
+  }
+
+  .app-shell,
+  .main-area {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .content {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

@@ -3,9 +3,14 @@ package com.manutencao.sistema.os.service;
 import com.manutencao.sistema.common.exception.RecursoNaoEncontradoException;
 import com.manutencao.sistema.common.exception.RegraNegocioException;
 import com.manutencao.sistema.os.domain.OrdemServico;
+import com.manutencao.sistema.os.domain.ModalidadeOs;
+import com.manutencao.sistema.os.domain.StatusOs;
 import com.manutencao.sistema.os.dto.AberturaOsRequest;
+import com.manutencao.sistema.os.dto.EdicaoSolicitacaoRequest;
 import com.manutencao.sistema.os.dto.OrdemServicoResponse;
+import com.manutencao.sistema.os.repository.BackupOsRepository;
 import com.manutencao.sistema.os.repository.OrdemServicoRepository;
+import com.manutencao.sistema.os.repository.TriagemOsRepository;
 import com.manutencao.sistema.setor.domain.Setor;
 import com.manutencao.sistema.usuario.domain.Perfil;
 import com.manutencao.sistema.usuario.domain.Usuario;
@@ -22,18 +27,44 @@ public class OrdemServicoService {
 
     private final OrdemServicoRepository osRepository;
     private final UsuarioRepository usuarioRepository;
+    private final BackupOsRepository backupRepository;
+    private final AcessoOsService acesso;
+    private final TriagemOsRepository triagemRepository;
 
     public OrdemServicoService(
             OrdemServicoRepository osRepository,
-            UsuarioRepository usuarioRepository
+            UsuarioRepository usuarioRepository,
+            BackupOsRepository backupRepository,
+            AcessoOsService acesso,
+            TriagemOsRepository triagemRepository
     ) {
         this.osRepository = osRepository;
         this.usuarioRepository = usuarioRepository;
+        this.backupRepository = backupRepository;
+        this.acesso = acesso;
+        this.triagemRepository = triagemRepository;
+    }
+
+    @Transactional
+    public OrdemServicoResponse editarSolicitacao(Long id, EdicaoSolicitacaoRequest request, String email) {
+        Usuario autor = acesso.usuario(email);
+        OrdemServico os = acesso.consultar(id, autor);
+        if (autor.getPerfil() != Perfil.SOLICITANTE && autor.getPerfil() != Perfil.ADMIN && autor.getPerfil() != Perfil.ATENDENTE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação não permitida.");
+        }
+        if (os.getStatus() != StatusOs.RECEBIDO || os.getModalidade() != ModalidadeOs.A_DEFINIR
+                || !triagemRepository.tecnicosAtivos(id).isEmpty()) {
+            throw new RegraNegocioException("O chamado só pode ser editado antes da triagem.");
+        }
+        acesso.conferirVersao(os, request.versao());
+        os.editarSolicitacao(request.categoria(), request.descricaoProblema(), request.patrimonioInformado(),
+                request.computadorLiga(), request.temRede(), request.consegueAnyDesk(), request.contato(), request.melhorHorario());
+        return OrdemServicoResponse.de(osRepository.saveAndFlush(os));
     }
 
     @Transactional
     public OrdemServicoResponse abrir(AberturaOsRequest request, String email) {
-        Usuario autor = usuarioAutenticado(email);
+        Usuario autor = acesso.usuario(email, "Usuário autenticado não encontrado.");
 
         if (autor.getPerfil() == Perfil.TECNICO) {
             throw new ResponseStatusException(
@@ -66,7 +97,7 @@ public class OrdemServicoService {
                 request.consegueAnyDesk(), request.contato(), request.melhorHorario()
         );
 
-        return OrdemServicoResponse.de(osRepository.save(os));
+        return OrdemServicoResponse.de(osRepository.save(os), autor.getPerfil() == Perfil.SOLICITANTE);
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
@@ -94,35 +125,41 @@ public class OrdemServicoService {
     }
 
     public List<OrdemServicoResponse> listar(String email) {
-        Usuario usuario = usuarioAutenticado(email);
+        Usuario usuario = acesso.usuario(email, "Usuário autenticado não encontrado.");
 
         List<OrdemServico> ordens = switch (usuario.getPerfil()) {
-            case ADMIN, ATENDENTE -> osRepository.findAllByOrderByAbertaEmDesc();
+            case ADMIN, ATENDENTE -> osRepository.findAllByExcluidaEmIsNullOrderByAbertaEmDesc();
             case SOLICITANTE -> osRepository
-                    .findBySolicitanteIdOrderByAbertaEmDesc(usuario.getId());
+                    .findBySolicitanteIdAndExcluidaEmIsNullOrderByAbertaEmDesc(usuario.getId());
             case TECNICO -> listarDoTecnico(usuario.getId());
         };
 
-        return ordens.stream().map(OrdemServicoResponse::de).toList();
+        boolean visaoSolicitante = usuario.getPerfil() == Perfil.SOLICITANTE;
+        return ordens.stream().map(os -> OrdemServicoResponse.de(os, visaoSolicitante)).toList();
     }
 
     public OrdemServicoResponse buscarPorId(Long id, String email) {
-        Usuario usuario = usuarioAutenticado(email);
+        Usuario usuario = acesso.usuario(email, "Usuário autenticado não encontrado.");
+        OrdemServico os = acesso.consultar(id, usuario);
+        return OrdemServicoResponse.de(os, usuario.getPerfil() == Perfil.SOLICITANTE);
+    }
 
-        OrdemServico os = osRepository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("OS", id));
-
-        boolean podeConsultar = switch (usuario.getPerfil()) {
-            case ADMIN, ATENDENTE -> true;
-            case SOLICITANTE -> os.getSolicitante().getId().equals(usuario.getId());
-            case TECNICO -> osRepository.existeVinculoAtivo(id, usuario.getId());
-        };
-
-        if (!podeConsultar) {
-            throw new RecursoNaoEncontradoException("OS", id);
+    @Transactional
+    public void excluir(Long id, String email) {
+        Usuario administrador = acesso.usuario(email, "Usuário autenticado não encontrado.");
+        if (administrador.getPerfil() != Perfil.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
         }
-
-        return OrdemServicoResponse.de(os);
+        OrdemServico os = acesso.consultar(id, administrador);
+        if (os.getRecebidoEm() != null && os.getEntregueEm() == null) {
+            throw new RegraNegocioException("Registre a devolução do equipamento antes de excluir a OS.");
+        }
+        if (backupRepository.buscar(id).filter(backup -> backup.solicitado() && backup.descartadoEm() == null)
+                .isPresent()) {
+            throw new RegraNegocioException("Confirme o descarte do backup antes de excluir a OS.");
+        }
+        os.excluir(administrador.getId());
+        osRepository.saveAndFlush(os);
     }
 
     private List<OrdemServico> listarDoTecnico(Long tecnicoId) {
@@ -169,22 +206,5 @@ public class OrdemServicoService {
         }
 
         return solicitante;
-    }
-
-    private Usuario usuarioAutenticado(String email) {
-        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "Usuário autenticado não encontrado."
-                ));
-
-        if (!usuario.isAtivo()) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "O usuário está inativo."
-            );
-        }
-
-        return usuario;
     }
 }

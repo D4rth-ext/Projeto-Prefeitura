@@ -2,7 +2,6 @@ package com.manutencao.sistema.os.controller;
 
 import com.manutencao.sistema.common.exception.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
 import java.util.List;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
@@ -64,16 +63,7 @@ public class OrdemServicoExceptionHandler {
             String mensagem,
             HttpServletRequest request
     ) {
-        HttpStatus conhecido = HttpStatus.resolve(status.value());
-        String erro = conhecido != null ? conhecido.getReasonPhrase() : "Erro";
-
-        return ResponseEntity.status(status).body(new ApiError(
-                Instant.now(),
-                status.value(),
-                erro,
-                mensagem,
-                request.getRequestURI(),
-                List.of()
-        ));
+        return ResponseEntity.status(status)
+                .body(ApiError.de(status, mensagem, request.getRequestURI(), List.of()));
     }
 }

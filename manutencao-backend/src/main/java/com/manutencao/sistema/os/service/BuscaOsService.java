@@ -6,6 +6,7 @@ import com.manutencao.sistema.os.dto.OrdemServicoResponse;
 import com.manutencao.sistema.os.dto.PaginaOsResponse;
 import com.manutencao.sistema.os.repository.BuscaOsRepository;
 import com.manutencao.sistema.os.repository.OrdemServicoRepository;
+import com.manutencao.sistema.usuario.domain.Perfil;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,9 +31,16 @@ public class BuscaOsService {
             throw new RegraNegocioException("O fim do período não pode ser anterior ao início.");
         }
 
-        BuscaOsRepository.Resultado resultado = buscaRepository.buscar(filtro, acesso.usuario(email));
+        var usuario = acesso.usuario(email);
+        boolean visaoSolicitante = usuario.getPerfil() == Perfil.SOLICITANTE;
+        if (filtro.tecnicoId() != null || Boolean.TRUE.equals(filtro.backupEmAberto())
+                || filtro.equipamentoId() != null || filtro.patrimonio() != null || filtro.numeroSerie() != null) {
+            acesso.exigirEquipe(usuario);
+        }
+        BuscaOsRepository.Resultado resultado = buscaRepository.buscar(filtro, usuario);
         List<OrdemServicoResponse> conteudo = resultado.ids().isEmpty() ? List.of()
-                : osRepository.buscarPorIds(resultado.ids()).stream().map(OrdemServicoResponse::de).toList();
+                : osRepository.buscarPorIds(resultado.ids()).stream()
+                        .map(os -> OrdemServicoResponse.de(os, visaoSolicitante)).toList();
         long paginas = (resultado.total() + filtro.tamanhoAtual() - 1) / filtro.tamanhoAtual();
         return new PaginaOsResponse(conteudo, filtro.paginaAtual(), filtro.tamanhoAtual(), resultado.total(), paginas);
     }

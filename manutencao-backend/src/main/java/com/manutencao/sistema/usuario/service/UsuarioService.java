@@ -3,19 +3,33 @@ package com.manutencao.sistema.usuario.service;
 import com.manutencao.sistema.common.exception.ConflitoException;
 import com.manutencao.sistema.common.exception.RecursoNaoEncontradoException;
 import com.manutencao.sistema.common.exception.RegraNegocioException;
+import com.manutencao.sistema.os.domain.StatusOs;
+import com.manutencao.sistema.os.repository.OrdemServicoRepository;
+import com.manutencao.sistema.os.repository.OrdemServicoRepository.TotalPorUsuario;
+import com.manutencao.sistema.os.repository.TriagemOsRepository;
+import com.manutencao.sistema.os.repository.TriagemOsRepository.OsDoTecnico;
 import com.manutencao.sistema.setor.domain.Setor;
 import com.manutencao.sistema.setor.repository.SetorRepository;
 import com.manutencao.sistema.usuario.domain.Perfil;
+import com.manutencao.sistema.usuario.domain.SituacaoCadastro;
 import com.manutencao.sistema.usuario.domain.Usuario;
+import com.manutencao.sistema.usuario.dto.EdicaoEquipeRequest;
 import com.manutencao.sistema.usuario.dto.RedefinicaoSenhaRequest;
 import com.manutencao.sistema.usuario.dto.RegistroSolicitanteRequest;
+import com.manutencao.sistema.usuario.dto.SenhaTemporariaResponse;
 import com.manutencao.sistema.usuario.dto.SolicitanteResumoResponse;
 import com.manutencao.sistema.usuario.dto.UsuarioEquipeRequest;
 import com.manutencao.sistema.usuario.dto.UsuarioResponse;
 import com.manutencao.sistema.usuario.repository.UsuarioRepository;
 import jakarta.persistence.EntityManager;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.manutencao.sistema.os.service.AcessoOsService;
@@ -28,17 +42,24 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class UsuarioService {
 
+    private static final SecureRandom ALEATORIO = new SecureRandom();
+
     private final UsuarioRepository usuarioRepository;
+    private final OrdemServicoRepository ordemServicoRepository;
+    private final TriagemOsRepository triagemOsRepository;
     private final SetorRepository setorRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbc;
     private final AcessoOsService acesso;
     private final EntityManager entityManager;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, SetorRepository setorRepository,
+    public UsuarioService(UsuarioRepository usuarioRepository, OrdemServicoRepository ordemServicoRepository,
+                          TriagemOsRepository triagemOsRepository, SetorRepository setorRepository,
                           PasswordEncoder passwordEncoder, JdbcTemplate jdbc, AcessoOsService acesso,
                           EntityManager entityManager) {
         this.usuarioRepository = usuarioRepository;
+        this.ordemServicoRepository = ordemServicoRepository;
+        this.triagemOsRepository = triagemOsRepository;
         this.setorRepository = setorRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbc = jdbc;
@@ -47,7 +68,17 @@ public class UsuarioService {
     }
 
     public List<UsuarioResponse> listar() {
-        return usuarioRepository.findAll().stream().map(UsuarioResponse::de).toList();
+        List<Usuario> usuarios = usuarioRepository.findAll();
+        List<Long> solicitanteIds = usuarios.stream()
+                .filter(u -> u.getPerfil() == Perfil.SOLICITANTE)
+                .map(Usuario::getId)
+                .toList();
+        Map<Long, Long> chamadosAbertos = solicitanteIds.isEmpty() ? Map.of()
+                : ordemServicoRepository.contarChamadosAbertosPorUsuario(solicitanteIds).stream()
+                        .collect(Collectors.toMap(TotalPorUsuario::getUsuarioId, TotalPorUsuario::getTotal));
+        return usuarios.stream()
+                .map(u -> UsuarioResponse.de(u, chamadosAbertos.getOrDefault(u.getId(), 0L)))
+                .toList();
     }
 
     public List<SolicitanteResumoResponse> listarSolicitantes(Long setorId, String busca, String email) {
@@ -59,31 +90,14 @@ public class UsuarioService {
     @Transactional
     public void trocarMinhaSenha(RedefinicaoSenhaRequest request, String email) {
         Usuario autor = acesso.usuario(email);
-        redefinirSenha(autor.getId(), request, autor);
-    }
-
-    @Transactional
-    public void redefinirSenha(Long id, RedefinicaoSenhaRequest request, String email) {
-        redefinirSenha(id, request, acesso.usuario(email));
-    }
-
-    private void redefinirSenha(Long id, RedefinicaoSenhaRequest request, Usuario autor) {
-        boolean propria = autor.getId().equals(id);
-        if (autor.getPerfil() == Perfil.TECNICO || autor.getPerfil() == Perfil.SOLICITANTE && !propria) {
-            throw redefinicaoProibida();
+        Usuario alvo = obterParaAlteracao(autor.getId(), autor);
+        if (!alvo.senhaTemporaria() && alvo.getPerfil() != Perfil.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solicite a redefinição da senha a um administrador.");
         }
-
-        Usuario alvo = obterParaAlteracao(id);
-        if (autor.getPerfil() == Perfil.ATENDENTE && alvo.getPerfil() != Perfil.SOLICITANTE) {
-            throw redefinicaoProibida();
-        }
-        if (propria) {
-            // O usuário autenticado já pode estar no cache da transação. Releia sob o bloqueio.
-            entityManager.refresh(alvo);
-            if (!alvo.isAtivo() || request.senhaAtual() == null || request.senhaAtual().isBlank()
-                    || !passwordEncoder.matches(request.senhaAtual(), alvo.getSenhaHash())) {
-                throw new RegraNegocioException("Informe a senha atual correta para alterar sua senha.");
-            }
+        if (!alvo.isAtivo() || alvo.senhaTemporariaVencida() || request.senhaAtual() == null
+                || !PoliticaSenha.cabeNoBCrypt(request.senhaAtual())
+                || !passwordEncoder.matches(request.senhaAtual(), alvo.getSenhaHash())) {
+            throw new RegraNegocioException("Informe a senha atual correta e dentro da validade.");
         }
         PoliticaSenha.validar(request.novaSenha());
         if (!request.novaSenha().equals(request.confirmarSenha())) {
@@ -95,7 +109,32 @@ public class UsuarioService {
 
         alvo.trocarSenha(passwordEncoder.encode(request.novaSenha()));
         usuarioRepository.saveAndFlush(alvo);
-        jdbc.update("insert into usuario_evento_senha (usuario_id, autor_id) values (?, ?)", id, autor.getId());
+        auditarSenha(alvo.getId(), autor.getId());
+    }
+
+    @Transactional
+    public SenhaTemporariaResponse redefinirSenha(Long id, String email) {
+        Usuario autor = exigirAdmin(email);
+        Usuario alvo = obterParaAlteracao(id, autor);
+        if (!alvo.isAtivo()) {
+            throw new RegraNegocioException("A redefinição exige uma conta ativa.");
+        }
+        if (autor.getId().equals(id)) {
+            throw new RegraNegocioException("Para alterar sua própria senha, use a operação de troca de senha.");
+        }
+
+        byte[] aleatorio = new byte[24];
+        ALEATORIO.nextBytes(aleatorio);
+        String senha = "A1-" + Base64.getUrlEncoder().withoutPadding().encodeToString(aleatorio);
+        Instant expiraEm = Instant.now().plus(1, ChronoUnit.DAYS);
+        alvo.definirSenhaTemporaria(passwordEncoder.encode(senha), expiraEm);
+        usuarioRepository.saveAndFlush(alvo);
+        auditarSenha(id, autor.getId());
+        return new SenhaTemporariaResponse(senha, expiraEm);
+    }
+
+    private void auditarSenha(Long alvoId, Long autorId) {
+        jdbc.update("insert into usuario_evento_senha (usuario_id, autor_id) values (?, ?)", alvoId, autorId);
     }
 
     /** Só o Admin chama (rota protegida no SecurityConfig). Nunca cria Solicitante por aqui. */
@@ -130,19 +169,55 @@ public class UsuarioService {
         }
         Usuario usuario = new Usuario(request.nome().trim(), email, normalizar(request.telefone()),
                 passwordEncoder.encode(request.senha()), Perfil.SOLICITANTE, setor);
+        usuario.aguardarAprovacao();
         return UsuarioResponse.de(usuarioRepository.save(usuario));
+    }
+
+    public List<UsuarioResponse> cadastrosPendentes(String email) {
+        exigirAdmin(email);
+        return usuarioRepository.findBySituacaoCadastroOrderByIdAsc(SituacaoCadastro.PENDENTE)
+                .stream().map(UsuarioResponse::de).toList();
+    }
+
+    @Transactional
+    public UsuarioResponse decidirCadastro(Long id, SituacaoCadastro decisao, String email) {
+        Usuario autor = exigirAdmin(email);
+        Usuario usuario = obterParaAlteracao(id, autor);
+        if (decisao == SituacaoCadastro.PENDENTE || usuario.getPerfil() != Perfil.SOLICITANTE) {
+            throw new RegraNegocioException("Informe uma decisão de aprovação ou rejeição de solicitante.");
+        }
+        if (usuario.getSituacaoCadastro() != SituacaoCadastro.PENDENTE) {
+            throw new ConflitoException("Este cadastro já foi decidido.");
+        }
+        if (decisao == SituacaoCadastro.APROVADO) {
+            exigirSetorAtivoParaVinculo(usuario.getSetor().getId());
+        }
+        usuario.decidirCadastro(decisao);
+        usuarioRepository.saveAndFlush(usuario);
+        jdbc.update("insert into usuario_evento_cadastro (usuario_id, autor_id, decisao) values (?, ?, ?)",
+                id, autor.getId(), decisao.name());
+        return UsuarioResponse.de(usuario);
+    }
+
+    @Transactional
+    public UsuarioResponse editarEquipe(Long id, EdicaoEquipeRequest request, String email) {
+        Usuario autor = exigirAdmin(email);
+        Usuario usuario = obterParaAlteracao(id, autor);
+        if (usuario.getPerfil() == Perfil.SOLICITANTE) {
+            throw new RegraNegocioException("Esta edição é exclusiva para contas da equipe.");
+        }
+        String novoEmail = emailNormalizado(request.email());
+        if (!usuario.getEmail().equalsIgnoreCase(novoEmail) && usuarioRepository.existsByEmailIgnoreCase(novoEmail)) {
+            throw new ConflitoException("Já existe um usuário com este e-mail.");
+        }
+        usuario.editarDadosDaEquipe(request.nome().trim(), novoEmail, normalizar(request.telefone()));
+        return UsuarioResponse.de(usuarioRepository.saveAndFlush(usuario));
     }
 
     @Transactional
     public void inativar(Long id, String email) {
-        Usuario autor = acesso.usuario(email);
-        if (autor.getPerfil() != Perfil.ADMIN) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
-        }
-        Usuario usuario = obterParaAlteracao(id);
-        if (usuario.getId().equals(autor.getId())) {
-            entityManager.refresh(usuario);
-        }
+        Usuario autor = exigirAdmin(email);
+        Usuario usuario = obterParaAlteracao(id, autor);
         if (!usuario.isAtivo()) {
             return;
         }
@@ -156,71 +231,57 @@ public class UsuarioService {
 
     @Transactional
     public UsuarioResponse alterarSetor(Long id, Long setorId, String email) {
-        if (acesso.usuario(email).getPerfil() != Perfil.ADMIN) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
-        }
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário", id));
+        Usuario autor = exigirAdmin(email);
+        Usuario usuario = obterParaAlteracao(id, autor);
         if (usuario.getPerfil() != Perfil.SOLICITANTE || !usuario.isAtivo()) {
             throw new RegraNegocioException("Somente funcionários solicitantes ativos podem mudar de setor.");
         }
-        Setor setor = setorRepository.findById(setorId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Setor", setorId));
+        usuario.alterarSetor(exigirSetorAtivoParaVinculo(setorId));
+        Usuario atualizado = usuarioRepository.saveAndFlush(usuario);
+        long chamadosAbertos = ordemServicoRepository.contarChamadosCriadosPorUsuario(atualizado.getId());
+        return UsuarioResponse.de(atualizado, chamadosAbertos);
+    }
+
+    private Setor exigirSetorAtivoParaVinculo(Long id) {
+        Setor setor = setorRepository.buscarParaVinculo(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Setor", id));
         if (!setor.isAtivo()) {
             throw new RegraNegocioException("O setor informado está inativo.");
         }
-        usuario.alterarSetor(setor);
-        return UsuarioResponse.de(usuarioRepository.saveAndFlush(usuario));
+        return setor;
     }
 
-    private Usuario obterParaAlteracao(Long id) {
-        return usuarioRepository.buscarParaAlteracao(id)
+    private Usuario obterParaAlteracao(Long id, Usuario autor) {
+        Usuario usuario = usuarioRepository.buscarParaAlteracao(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário", id));
+        if (id.equals(autor.getId())) {
+            // Releia o usuário autenticado se ele já estava no contexto da transação.
+            entityManager.refresh(usuario);
+        }
+        return usuario;
     }
 
-    private ResponseStatusException redefinicaoProibida() {
-        return new ResponseStatusException(HttpStatus.FORBIDDEN, "Sem permissão para redefinir esta senha.");
+    private Usuario exigirAdmin(String email) {
+        Usuario autor = acesso.usuario(email);
+        if (autor.getPerfil() != Perfil.ADMIN || autor.senhaTemporaria()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
+        }
+        return autor;
     }
 
     private void encerrarVinculosDoTecnico(Long tecnicoId, Long autorId) {
-        // A mesma ordem de bloqueio impede que duas inativações concorrentes
-        // deixem uma OS em análise sem nenhum técnico ativo.
-        List<Long> ids = jdbc.queryForList("""
-                select os.id from ordem_servico os
-                where exists (select 1 from os_tecnico vinculo
-                    where vinculo.os_id = os.id and vinculo.tecnico_id = ?
-                      and vinculo.saida_em is null)
-                order by os.id for update
-                """, Long.class, tecnicoId);
+        List<OsDoTecnico> ordens = triagemOsRepository.bloquearOrdensDoTecnico(tecnicoId);
 
-        for (Long osId : ids) {
-            String status = jdbc.queryForObject("select status from ordem_servico where id = ?", String.class, osId);
-            Long outros = jdbc.queryForObject("""
-                    select count(*) from os_tecnico vinculo
-                    join usuario tecnico on tecnico.id = vinculo.tecnico_id
-                    where vinculo.os_id = ? and vinculo.saida_em is null
-                      and tecnico.ativo and tecnico.perfil = 'TECNICO'
-                      and tecnico.id <> ?
-                    """, Long.class, osId, tecnicoId);
-            if (("EM_ANALISE".equals(status) || "AGUARDANDO_PECA".equals(status))
-                    && (outros == null || outros == 0)) {
-                throw new RegraNegocioException("Designe outro técnico para a OS " + osId + " antes de inativar este usuário.");
+        // Confira todas as OSs antes de encerrar os vínculos.
+        for (OsDoTecnico os : ordens) {
+            if ((os.status() == StatusOs.EM_ANALISE || os.status() == StatusOs.AGUARDANDO_PECA)
+                    && !triagemOsRepository.temOutroTecnicoAtivo(os.id(), tecnicoId)) {
+                throw new RegraNegocioException("Designe outro técnico para a OS " + os.id() + " antes de inativar este usuário.");
             }
         }
 
-        for (Long osId : ids) {
-            jdbc.update("""
-                    update os_tecnico set saida_em = current_timestamp, motivo_saida = 'Usuário inativado.'
-                    where os_id = ? and tecnico_id = ? and saida_em is null
-                    """, osId, tecnicoId);
-            jdbc.update("""
-                    update ordem_servico set versao = versao + 1, atualizado_em = current_timestamp
-                    where id = ?
-                    """, osId);
-            jdbc.update("""
-                    insert into os_evento (os_id, tipo, autor_id, valor_anterior, valor_novo, motivo)
-                    values (?, 'TECNICO_SAIU', ?, ?, null, 'Usuário inativado.')
-                    """, osId, autorId, tecnicoId.toString());
+        for (OsDoTecnico os : ordens) {
+            triagemOsRepository.registrarInativacao(os.id(), tecnicoId, autorId);
         }
     }
 
@@ -238,7 +299,7 @@ public class UsuarioService {
     }
 
     private String emailNormalizado(String email) {
-        return email.trim().toLowerCase();
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalizar(String texto) {

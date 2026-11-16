@@ -1,19 +1,31 @@
 package com.manutencao.sistema.os.repository;
 
+import com.manutencao.sistema.os.domain.StatusOs;
 import com.manutencao.sistema.os.domain.TipoRegistroOs;
 import com.manutencao.sistema.os.dto.EventoOsResponse;
+import com.manutencao.sistema.os.dto.HistoricoStatusResponse;
 import com.manutencao.sistema.os.dto.RegistroOsResponse;
 import com.manutencao.sistema.os.dto.VinculoTecnicoResponse;
-import java.sql.Timestamp;
 import java.sql.PreparedStatement;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class RegistroOsRepository {
+
+    private static final String CONSULTA_REGISTROS = """
+            select registro.*, autor.nome as autor_nome, os.versao
+            from os_registro registro
+            join usuario autor on autor.id = registro.autor_id
+            join ordem_servico os on os.id = registro.os_id
+            where registro.os_id = ?
+            """;
 
     private final JdbcTemplate jdbc;
 
@@ -58,19 +70,34 @@ public class RegistroOsRepository {
     public List<RegistroOsResponse> listar(Long osId, boolean apenasVisiveisAoSolicitante) {
         String filtro = apenasVisiveisAoSolicitante
                 ? " and registro.tipo in ('ORIENTACAO', 'OBSERVACAO_SOLICITANTE')" : "";
+        return jdbc.query(CONSULTA_REGISTROS + filtro + " order by registro.criado_em, registro.id",
+                this::mapearRegistro, osId);
+    }
+
+    public RegistroOsResponse buscarRegistro(Long osId, Long registroId) {
+        return jdbc.queryForObject(CONSULTA_REGISTROS + " and registro.id = ?",
+                this::mapearRegistro, osId, registroId);
+    }
+
+    private RegistroOsResponse mapearRegistro(ResultSet rs, int linha) throws SQLException {
+        return new RegistroOsResponse(
+                rs.getLong("id"), rs.getLong("os_id"),
+                TipoRegistroOs.valueOf(rs.getString("tipo")), rs.getLong("autor_id"),
+                rs.getString("autor_nome"), rs.getString("texto"),
+                instante(rs.getTimestamp("criado_em")), rs.getLong("versao")
+        );
+    }
+
+    public List<HistoricoStatusResponse> historicoStatus(Long osId) {
         return jdbc.query("""
-                select registro.*, autor.nome as autor_nome, os.versao
-                from os_registro registro
-                join usuario autor on autor.id = registro.autor_id
-                join ordem_servico os on os.id = registro.os_id
-                where registro.os_id = ?
-                """ + filtro + " order by registro.criado_em, registro.id",
-                (rs, linha) -> new RegistroOsResponse(
-                        rs.getLong("id"), rs.getLong("os_id"),
-                        TipoRegistroOs.valueOf(rs.getString("tipo")), rs.getLong("autor_id"),
-                        rs.getString("autor_nome"), rs.getString("texto"),
-                        instante(rs.getTimestamp("criado_em")), rs.getLong("versao")
-                ), osId);
+                select valor_anterior, valor_novo, criado_em
+                from os_evento where os_id = ? and tipo = 'STATUS'
+                order by criado_em, id
+                """, (rs, linha) -> {
+            String anterior = rs.getString("valor_anterior");
+            return new HistoricoStatusResponse(anterior == null ? null : StatusOs.valueOf(anterior),
+                    StatusOs.valueOf(rs.getString("valor_novo")), instante(rs.getTimestamp("criado_em")));
+        }, osId);
     }
 
     public List<EventoOsResponse> eventos(Long osId) {

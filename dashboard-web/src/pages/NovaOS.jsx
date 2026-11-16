@@ -19,6 +19,7 @@ export default function NovaOS() {
   const [erroSolicitantes, setErroSolicitantes] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState(null)
+  const [buscaSolicitante, setBuscaSolicitante] = useState('')
 
   const perfil = usuario?.perfil
   const abreEmNomeDeOutro = perfil === 'ADMIN' || perfil === 'ATENDENTE'
@@ -40,6 +41,10 @@ export default function NovaOS() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (abreEmNomeDeOutro && !form.solicitanteId) {
+      setErro('Selecione um solicitante da lista.')
+      return
+    }
     setEnviando(true)
     setErro(null)
 
@@ -71,13 +76,16 @@ export default function NovaOS() {
           {!abreEmNomeDeOutro && <div className="requester-summary"><span className="muted">Solicitante</span><strong>{usuario?.nome}</strong><span className="muted">O setor é associado automaticamente à sua conta.</span></div>}
           {abreEmNomeDeOutro && (
             <div className="field">
-              <label>Solicitante</label>
-                <select disabled={carregandoSolicitantes} value={form.solicitanteId} onChange={(e) => campo('solicitanteId', e.target.value)} required>
-                  <option value="">{carregandoSolicitantes ? 'Carregando...' : 'Selecione o solicitante'}</option>
-                  {solicitantes.map((s) => (
-                    <option key={s.id} value={s.id}>{s.nome} — {s.setorNome}</option>
-                  ))}
-                </select>
+              <label htmlFor="buscar-solicitante">Solicitante</label>
+                <input id="buscar-solicitante" type="search" placeholder="Pesquisar por nome ou setor" disabled={carregandoSolicitantes}
+                  value={buscaSolicitante} onChange={e => { setBuscaSolicitante(e.target.value); campo('solicitanteId', '') }} />
+                <div role="listbox" aria-label="Solicitantes" style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
+                  {solicitantes.filter(s => `${s.nome} ${s.setorNome}`.toLocaleLowerCase().includes(buscaSolicitante.toLocaleLowerCase())).map(s =>
+                    <button type="button" role="option" aria-selected={String(s.id) === form.solicitanteId} key={s.id}
+                      onClick={() => { campo('solicitanteId', String(s.id)); setBuscaSolicitante(`${s.nome} — ${s.setorNome}`) }}
+                      style={{ display: 'block', width: '100%', padding: 8, textAlign: 'left', background: String(s.id) === form.solicitanteId ? 'var(--page-bg)' : 'var(--surface)', border: 0, cursor: 'pointer' }}>{s.nome} — {s.setorNome}</button>
+                  )}
+                </div>
                 {erroSolicitantes && <p className="erro" role="alert">{erroSolicitantes}</p>}
                 {!carregandoSolicitantes && !erroSolicitantes && !solicitantes.length && <p>Nenhum solicitante ativo em setor ativo. O solicitante precisa realizar o autocadastro.</p>}
             </div>

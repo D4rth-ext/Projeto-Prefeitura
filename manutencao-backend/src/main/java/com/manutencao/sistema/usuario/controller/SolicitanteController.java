@@ -22,6 +22,7 @@ public class SolicitanteController {
 
     @GetMapping
     public List<SolicitanteResumo> listar(Principal principal) {
+        // Esta lista serve para a abertura de OS. Inclui apenas solicitantes de setores ativos.
         acesso.exigirGestao(acesso.usuario(principal.getName()));
         return repository.listarSolicitantesAtivos();
     }

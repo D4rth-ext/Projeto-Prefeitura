@@ -1,6 +1,5 @@
 package com.manutencao.sistema.os.service;
 
-import com.manutencao.sistema.common.exception.ConflitoException;
 import com.manutencao.sistema.common.exception.RecursoNaoEncontradoException;
 import com.manutencao.sistema.common.exception.RegraNegocioException;
 import com.manutencao.sistema.os.domain.ModalidadeOs;
@@ -16,10 +15,8 @@ import com.manutencao.sistema.usuario.repository.UsuarioRepository;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Transactional(readOnly = true)
@@ -28,38 +25,28 @@ public class TriagemOsService {
     private final OrdemServicoRepository osRepository;
     private final UsuarioRepository usuarioRepository;
     private final TriagemOsRepository triagemRepository;
-    private final OrdemServicoService osService;
+    private final AcessoOsService acesso;
 
     public TriagemOsService(
             OrdemServicoRepository osRepository,
             UsuarioRepository usuarioRepository,
             TriagemOsRepository triagemRepository,
-            OrdemServicoService osService
+            AcessoOsService acesso
     ) {
         this.osRepository = osRepository;
         this.usuarioRepository = usuarioRepository;
         this.triagemRepository = triagemRepository;
-        this.osService = osService;
+        this.acesso = acesso;
     }
 
     @Transactional
     public OrdemServicoResponse triar(Long id, TriagemOsRequest request, String email) {
-        Usuario autor = usuarioAutenticado(email);
+        Usuario autor = acesso.usuario(email, "Usuário não encontrado.");
+        acesso.exigirGestao(autor, "Somente admin e atendente realizam triagem.");
+        OrdemServico os = acesso.consultar(id, autor);
+        acesso.conferirVersao(os, request.versao());
 
-        if (autor.getPerfil() != Perfil.ADMIN && autor.getPerfil() != Perfil.ATENDENTE) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente admin e atendente realizam triagem.");
-        }
-
-        OrdemServico os = osRepository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("OS", id));
-
-        if (!os.getVersao().equals(request.versao())) {
-            throw new ConflitoException("A OS foi alterada. Consulte novamente e use a versão atual.");
-        }
-
-        if (os.getStatus() != StatusOs.RECEBIDO
-                && os.getStatus() != StatusOs.EM_ANALISE
-                && os.getStatus() != StatusOs.AGUARDANDO_PECA) {
+        if (!os.getStatus().emAtendimento()) {
             throw new RegraNegocioException("Só é possível ajustar a triagem de uma OS em atendimento.");
         }
 
@@ -147,7 +134,9 @@ public class TriagemOsService {
     }
 
     public List<Long> tecnicosAtivos(Long id, String email) {
-        osService.buscarPorId(id, email);
+        Usuario usuario = acesso.usuario(email);
+        acesso.exigirEquipe(usuario);
+        acesso.consultar(id, usuario);
         return triagemRepository.tecnicosAtivos(id);
     }
 
@@ -164,17 +153,6 @@ public class TriagemOsService {
                 throw new RegraNegocioException("O usuário " + id + " deve ser um técnico ativo.");
             }
         }
-    }
-
-    private Usuario usuarioAutenticado(String email) {
-        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado."));
-
-        if (!usuario.isAtivo()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "O usuário está inativo.");
-        }
-
-        return usuario;
     }
 
     private String normalizar(String texto) {

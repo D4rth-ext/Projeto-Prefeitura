@@ -1,0 +1,9 @@
+# Configuração exclusiva para desenvolvimento local via mvn spring-boot:run.
+# Não ative o perfil "local" em produção.
+spring:
+  datasource:
+    password: ${DB_PASSWORD:dev}
+
+app:
+  jwt:
+    segredo: ${JWT_SECRET}

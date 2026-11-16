@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { pesquisarOrdens, listarEquipe } from '../api/ordensServico'
+import { buscarEquipamentos } from '../api/equipamentos'
 import { buscarSetoresPublicos } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
 import StatusBadge from '../components/StatusBadge'
@@ -17,13 +18,14 @@ export default function OrdensServico() {
   const [ordem, setOrdem] = useState('recentes')
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(null)
-  const [filtros, setFiltros] = useState({ id: '', setorId: '', patrimonio: '', tecnicoId: '', status: '', modalidade: '', backupEmAberto: '', inicio: '', fim: '', atrasadas: '' })
+  const [filtros, setFiltros] = useState({ id: '', setorId: '', equipamentoId: '', patrimonio: '', numeroSerie: '', tecnicoId: '', status: '', modalidade: '', backupEmAberto: '', inicio: '', fim: '', atrasadas: '', encerrada: '' })
   const [consulta, setConsulta] = useState({})
   const [pagina, setPagina] = useState(0)
   const [total, setTotal] = useState(0)
   const [paginas, setPaginas] = useState(0)
   const [setores, setSetores] = useState([])
   const [equipe, setEquipe] = useState([])
+  const [equipamentos, setEquipamentos] = useState([])
 
   const ehSolicitante = usuario?.perfil === 'SOLICITANTE'
   const podeAbrir = usuario?.perfil !== 'TECNICO'
@@ -39,7 +41,10 @@ export default function OrdensServico() {
   }, [consulta, pagina])
   useEffect(() => {
     buscarSetoresPublicos().then(setSetores).catch(() => {})
-    if (['ADMIN', 'ATENDENTE'].includes(usuario?.perfil)) listarEquipe().then(l => setEquipe(l.filter(t => t.perfil === 'TECNICO'))).catch(() => {})
+    if (['ADMIN', 'ATENDENTE'].includes(usuario?.perfil)) {
+      listarEquipe().then(l => setEquipe(l.filter(t => t.perfil === 'TECNICO'))).catch(() => {})
+      buscarEquipamentos({ incluirInativos: true }).then(setEquipamentos).catch(() => {})
+    }
   }, [usuario?.perfil])
 
   const resumo = useMemo(() => ({
@@ -66,7 +71,7 @@ export default function OrdensServico() {
 
   return (
     <div>
-      <header className="ticket-heading"><div><h1>{ehSolicitante ? 'Meus chamados' : 'Chamados'}</h1><p className="muted">Acompanhe as solicitações de suporte</p></div>{podeAbrir && <Link to="/ordens-servico/nova" className="btn-primary">+ Novo chamado</Link>}</header>
+      <header className="ticket-heading"><div><h1>{ehSolicitante ? 'Meus chamados' : 'Chamados'}</h1><p className="muted">Acompanhe as solicitações de suporte</p></div><div className="actions no-print">{ordens.length > 0 && <button type="button" className="btn-secondary" onClick={() => window.print()}>Imprimir página</button>}{podeAbrir && <Link to="/ordens-servico/nova" className="btn-primary">+ Novo chamado</Link>}</div></header>
 
       <div className="content">
 
@@ -74,22 +79,25 @@ export default function OrdensServico() {
         <div className="ticket-stats">
           {[['Total encontrado', total], ['Recebidos nesta página', ordens.filter(o => o.status === 'RECEBIDO').length], ['Em atendimento nesta página', ordens.filter(o => ['EM_ANALISE', 'AGUARDANDO_PECA'].includes(o.status)).length], ['Resolvidos nesta página', ordens.filter(o => ['FINALIZADO', 'ENTREGUE'].includes(o.status)).length]].map(([label, value]) => <div className="card" key={label}><span className="ticket-stat-label">{label}</span><p className="ticket-stat-value">{carregando ? '—' : value}</p></div>)}
         </div>
-        <div className="ticket-tools">
+        <div className="ticket-tools no-print">
           <input aria-label="Buscar nesta página" placeholder="Buscar nesta página por descrição, solicitante ou nº..." value={busca} onChange={e => setBusca(e.target.value)} />
           <div className="quick-filters" aria-label="Filtrar por status">{[['', 'Todos'], ['RECEBIDO', 'Recebidos'], ['EM_ANALISE', 'Em análise'], ['FINALIZADO', 'Finalizados']].map(([status, label]) => <button key={status} type="button" aria-pressed={(consulta.status || '') === status} onClick={() => { setPagina(0); setFiltros(f => ({ ...f, status })); setConsulta(c => ({ ...c, status: status || undefined })) }}>{label}</button>)}</div>
           <select aria-label="Ordenar página" value={ordem} onChange={e => setOrdem(e.target.value)}><option value="recentes">Mais recentes</option><option value="antigos">Mais antigos</option></select>
         </div>
-        <details className="advanced-filters"><summary>Filtros avançados</summary>
+        <details className="advanced-filters no-print"><summary>Filtros avançados</summary>
         <form className="card filter-grid" onSubmit={e => { e.preventDefault(); setPagina(0); setConsulta(Object.fromEntries(Object.entries(filtros).filter(([, v]) => v !== ''))) }}>
           <div className="field"><label>Nº da OS</label><input type="number" min="1" value={filtros.id} onChange={e => setFiltros(f => ({ ...f, id: e.target.value }))} /></div>
           {!ehSolicitante && <div className="field"><label>Setor</label><select value={filtros.setorId} onChange={e => setFiltros(f => ({ ...f, setorId: e.target.value }))}><option value="">Todos</option>{setores.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}</select></div>}
           <div className="field"><label>Patrimônio</label><input value={filtros.patrimonio} onChange={e => setFiltros(f => ({ ...f, patrimonio: e.target.value }))} /></div>
+          <div className="field"><label>Número de série</label><input value={filtros.numeroSerie} onChange={e => setFiltros(f => ({ ...f, numeroSerie: e.target.value }))} /></div>
+          {!ehSolicitante && <div className="field"><label>Equipamento</label><select value={filtros.equipamentoId} onChange={e => setFiltros(f => ({ ...f, equipamentoId: e.target.value }))}><option value="">Todos</option>{equipamentos.map(eq => <option key={eq.id} value={eq.id}>{eq.patrimonio || eq.numeroSerie || `Equipamento ${eq.id}`} · {eq.marca} {eq.modelo}</option>)}</select></div>}
           {!!equipe.length && <div className="field"><label>Técnico</label><select value={filtros.tecnicoId} onChange={e => setFiltros(f => ({ ...f, tecnicoId: e.target.value }))}><option value="">Todos</option>{equipe.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</select></div>}
           <div className="field"><label>Status</label><select value={filtros.status} onChange={e => setFiltros(f => ({ ...f, status: e.target.value }))}><option value="">Todos</option>{Object.entries({ RECEBIDO: 'Recebido', EM_ANALISE: 'Em análise', AGUARDANDO_PECA: 'Aguardando peça', FINALIZADO: 'Finalizado', ENTREGUE: 'Entregue', CANCELADO: 'Cancelado' }).map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></div>
           <div className="field"><label>Modalidade</label><select value={filtros.modalidade} onChange={e => setFiltros(f => ({ ...f, modalidade: e.target.value }))}><option value="">Todas</option>{Object.entries(MODALIDADES).map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></div>
           {['inicio', 'fim'].map(k => <div key={k} className="field"><label>{k === 'inicio' ? 'Abertura desde' : 'Abertura até'}</label><input type="date" value={filtros[k]} onChange={e => setFiltros(f => ({ ...f, [k]: e.target.value }))} /></div>)}
           <label className="check"><input type="checkbox" checked={filtros.backupEmAberto === 'true'} onChange={e => setFiltros(f => ({ ...f, backupEmAberto: e.target.checked ? 'true' : '' }))} />Backup em aberto</label>
           <label className="check"><input type="checkbox" checked={filtros.atrasadas === 'true'} onChange={e => setFiltros(f => ({ ...f, atrasadas: e.target.checked ? 'true' : '' }))} />Somente atrasadas</label>
+          <div className="field"><label>Situação</label><select value={filtros.encerrada} onChange={e => setFiltros(f => ({ ...f, encerrada: e.target.value }))}><option value="">Todas</option><option value="false">Em andamento</option><option value="true">Encerradas</option></select></div>
           <button className="btn-primary" disabled={carregando}>Aplicar filtros</button>
           <button className="btn-secondary" type="button" onClick={() => { setFiltros(f => Object.fromEntries(Object.keys(f).map(k => [k, '']))); setConsulta({}); setPagina(0); setBusca('') }}>Limpar filtros</button>
         </form>
@@ -144,7 +152,7 @@ export default function OrdensServico() {
             </div>
           )}
         </div>
-        <div className="actions"><button className="btn-secondary" disabled={carregando || pagina === 0} onClick={() => setPagina(p => p - 1)}>Anterior</button><span>Página {paginas ? pagina + 1 : 0} de {paginas}</span><button className="btn-secondary" disabled={carregando || pagina + 1 >= paginas} onClick={() => setPagina(p => p + 1)}>Próxima</button></div>
+        <div className="actions no-print"><button className="btn-secondary" disabled={carregando || pagina === 0} onClick={() => setPagina(p => p - 1)}>Anterior</button><span>Página {paginas ? pagina + 1 : 0} de {paginas}</span><button className="btn-secondary" disabled={carregando || pagina + 1 >= paginas} onClick={() => setPagina(p => p + 1)}>Próxima</button></div>
       </div>
     </div>
   )

@@ -52,6 +52,13 @@ public class Usuario {
     @Column(nullable = false)
     private boolean ativo = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "situacao_cadastro", nullable = false, length = 12)
+    private SituacaoCadastro situacaoCadastro = SituacaoCadastro.APROVADO;
+
+    @Column(name = "senha_temporaria_expira_em")
+    private Instant senhaTemporariaExpiraEm;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
@@ -79,6 +86,26 @@ public class Usuario {
 
     public void inativar() {
         this.ativo = false;
+        this.revisaoSenha = UUID.randomUUID();
+    }
+
+    public void aguardarAprovacao() {
+        this.situacaoCadastro = SituacaoCadastro.PENDENTE;
+        this.ativo = false;
+    }
+
+    public void decidirCadastro(SituacaoCadastro decisao) {
+        this.situacaoCadastro = decisao;
+        this.ativo = decisao == SituacaoCadastro.APROVADO;
+    }
+
+    public void editarDadosDaEquipe(String nome, String email, String telefone) {
+        this.nome = nome;
+        this.telefone = telefone;
+        if (!this.email.equals(email)) {
+            this.email = email;
+            this.revisaoSenha = UUID.randomUUID();
+        }
     }
 
     public void alterarSetor(Setor setor) {
@@ -88,6 +115,24 @@ public class Usuario {
     public void trocarSenha(String novaSenhaHash) {
         this.senhaHash = novaSenhaHash;
         this.revisaoSenha = UUID.randomUUID();
+        this.senhaTemporariaExpiraEm = null;
+    }
+
+    public void definirSenhaTemporaria(String hash, Instant expiraEm) {
+        trocarSenha(hash);
+        this.senhaTemporariaExpiraEm = expiraEm;
+    }
+
+    public boolean senhaTemporaria() {
+        return senhaTemporariaExpiraEm != null;
+    }
+
+    public boolean senhaTemporariaVencida() {
+        return senhaTemporaria() && !senhaTemporariaExpiraEm.isAfter(Instant.now());
+    }
+
+    public SituacaoCadastro getSituacaoCadastro() {
+        return situacaoCadastro;
     }
 
     @PrePersist

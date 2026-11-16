@@ -2,6 +2,7 @@
 // { timestamp, status, erro, mensagem, caminho, campos: [{ campo, mensagem }] }
 // Essa função extrai a melhor mensagem pra mostrar pro usuário.
 export function mensagemDeErro(err, fallback = 'Algo deu errado. Tente novamente.') {
+  if (err?.response?.status === 429) return 'Muitas tentativas. Aguarde um minuto antes de tentar novamente.'
   const dados = err?.response?.data
   if (!dados) return fallback
 

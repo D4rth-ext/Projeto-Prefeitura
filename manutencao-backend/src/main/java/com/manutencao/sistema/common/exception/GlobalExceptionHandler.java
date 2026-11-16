@@ -1,7 +1,6 @@
 package com.manutencao.sistema.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -64,9 +63,7 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ApiError> resposta(HttpStatusCode status, String mensagem, HttpServletRequest req,
                                               List<ApiError.CampoInvalido> campos) {
-        HttpStatus conhecido = HttpStatus.resolve(status.value());
-        String erro = conhecido != null ? conhecido.getReasonPhrase() : "Erro";
         return ResponseEntity.status(status)
-                .body(new ApiError(Instant.now(), status.value(), erro, mensagem, req.getRequestURI(), campos));
+                .body(ApiError.de(status, mensagem, req.getRequestURI(), campos));
     }
 }

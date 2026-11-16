@@ -1,6 +1,7 @@
 package com.manutencao.sistema.usuario.repository;
 
 import com.manutencao.sistema.usuario.domain.Perfil;
+import com.manutencao.sistema.usuario.domain.SituacaoCadastro;
 import com.manutencao.sistema.usuario.domain.Usuario;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -30,6 +31,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     boolean existsByEmailIgnoreCase(String email);
 
     boolean existsByPerfilAndAtivoTrue(Perfil perfil);
+
+    List<Usuario> findBySituacaoCadastroOrderByIdAsc(SituacaoCadastro situacaoCadastro);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from Usuario u where u.id = :id")

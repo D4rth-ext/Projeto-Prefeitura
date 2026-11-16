@@ -1,6 +1,7 @@
 package com.manutencao.sistema.os.controller;
 
 import com.manutencao.sistema.os.dto.EventoOsResponse;
+import com.manutencao.sistema.os.dto.HistoricoStatusResponse;
 import com.manutencao.sistema.os.dto.RegistroOsRequest;
 import com.manutencao.sistema.os.dto.RegistroOsResponse;
 import com.manutencao.sistema.os.dto.VinculoTecnicoResponse;
@@ -38,6 +39,11 @@ public class RegistroOsController {
     @GetMapping("/{id}/registros")
     public List<RegistroOsResponse> listar(@PathVariable Long id, Principal principal) {
         return service.listar(id, principal.getName());
+    }
+
+    @GetMapping("/{id}/historico-status")
+    public List<HistoricoStatusResponse> historicoStatus(@PathVariable Long id, Principal principal) {
+        return service.historicoStatus(id, principal.getName());
     }
 
     @GetMapping("/{id}/eventos")

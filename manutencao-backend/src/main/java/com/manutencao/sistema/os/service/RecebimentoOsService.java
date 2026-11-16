@@ -1,6 +1,5 @@
 package com.manutencao.sistema.os.service;
 
-import com.manutencao.sistema.common.exception.ConflitoException;
 import com.manutencao.sistema.common.exception.RecursoNaoEncontradoException;
 import com.manutencao.sistema.common.exception.RegraNegocioException;
 import com.manutencao.sistema.equipamento.domain.Equipamento;
@@ -10,16 +9,11 @@ import com.manutencao.sistema.os.domain.OrdemServico;
 import com.manutencao.sistema.os.domain.StatusOs;
 import com.manutencao.sistema.os.dto.RecebimentoOsRequest;
 import com.manutencao.sistema.os.dto.RecebimentoOsResponse;
-import com.manutencao.sistema.os.repository.OrdemServicoRepository;
 import com.manutencao.sistema.os.repository.RecebimentoOsRepository;
 import com.manutencao.sistema.os.repository.TriagemOsRepository;
-import com.manutencao.sistema.usuario.domain.Perfil;
 import com.manutencao.sistema.usuario.domain.Usuario;
-import com.manutencao.sistema.usuario.repository.UsuarioRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Transactional(readOnly = true)
@@ -29,27 +23,21 @@ public class RecebimentoOsService {
             "O solicitante declarou estar ciente do risco de perda de dados "
                     + "e optou por não solicitar backup. Confirmação registrada pelo atendente/admin.";
 
-    private final OrdemServicoRepository osRepository;
     private final EquipamentoRepository equipamentoRepository;
-    private final UsuarioRepository usuarioRepository;
     private final RecebimentoOsRepository recebimentoRepository;
     private final TriagemOsRepository auditoria;
-    private final OrdemServicoService osService;
+    private final AcessoOsService acesso;
 
     public RecebimentoOsService(
-            OrdemServicoRepository osRepository,
             EquipamentoRepository equipamentoRepository,
-            UsuarioRepository usuarioRepository,
             RecebimentoOsRepository recebimentoRepository,
             TriagemOsRepository auditoria,
-            OrdemServicoService osService
+            AcessoOsService acesso
     ) {
-        this.osRepository = osRepository;
         this.equipamentoRepository = equipamentoRepository;
-        this.usuarioRepository = usuarioRepository;
         this.recebimentoRepository = recebimentoRepository;
         this.auditoria = auditoria;
-        this.osService = osService;
+        this.acesso = acesso;
     }
 
     @Transactional
@@ -58,23 +46,10 @@ public class RecebimentoOsService {
             RecebimentoOsRequest request,
             String email
     ) {
-        Usuario autor = usuarioAutenticado(email);
-
-        if (autor.getPerfil() != Perfil.ADMIN && autor.getPerfil() != Perfil.ATENDENTE) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Somente admin e atendente registram o recebimento."
-            );
-        }
-
-        OrdemServico os = osRepository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("OS", id));
-
-        if (!os.getVersao().equals(request.versao())) {
-            throw new ConflitoException(
-                    "A OS foi alterada. Consulte novamente e use a versão atual."
-            );
-        }
+        Usuario autor = acesso.usuario(email, "Usuário não encontrado.");
+        acesso.exigirGestao(autor, "Somente admin e atendente registram o recebimento.");
+        OrdemServico os = acesso.consultar(id, autor);
+        acesso.conferirVersao(os, request.versao());
 
         if (os.getModalidade() != ModalidadeOs.BANCADA
                 || os.getStatus() != StatusOs.RECEBIDO) {
@@ -145,29 +120,14 @@ public class RecebimentoOsService {
     }
 
     public RecebimentoOsResponse consultar(Long id, String email) {
-        osService.buscarPorId(id, email);
+        Usuario usuario = acesso.usuario(email);
+        acesso.exigirEquipe(usuario);
+        acesso.consultar(id, usuario);
 
         return recebimentoRepository.buscar(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Recebimento da OS", id
                 ));
-    }
-
-    private Usuario usuarioAutenticado(String email) {
-        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "Usuário não encontrado."
-                ));
-
-        if (!usuario.isAtivo()) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "O usuário está inativo."
-            );
-        }
-
-        return usuario;
     }
 
     private String normalizar(String texto) {

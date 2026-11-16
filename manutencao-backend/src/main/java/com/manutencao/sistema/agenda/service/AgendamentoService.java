@@ -122,7 +122,7 @@ public class AgendamentoService {
         }
         OrdemServico os = request.osId() == null ? null : osRepository.findById(request.osId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("OS", request.osId()));
-        if (os != null && (os.encerrada() || os.getStatus() == com.manutencao.sistema.os.domain.StatusOs.FINALIZADO
+        if (os != null && (!os.getStatus().emAtendimento()
                 || !osRepository.existeVinculoAtivo(os.getId(), tecnico.getId()))) {
             throw new RegraNegocioException("O agendamento exige OS em atendimento e técnico vinculado.");
         }

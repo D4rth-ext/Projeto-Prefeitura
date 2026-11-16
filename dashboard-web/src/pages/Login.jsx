@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { mensagemDeErro } from '../api/erro'
 
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState(null)
@@ -16,8 +17,8 @@ export default function Login() {
     setErro(null)
     setCarregando(true)
     try {
-      await login(email, senha)
-      navigate('/', { replace: true })
+      const usuario = await login(email, senha)
+      navigate(usuario.trocaSenhaObrigatoria ? '/trocar-senha' : '/', { replace: true })
     } catch (err) {
       setErro(mensagemDeErro(err, err.response?.status === 401
         ? 'E-mail ou senha inválidos.'
@@ -35,6 +36,8 @@ export default function Login() {
           <h1 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Manutenção TI</h1>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>Acesso de solicitantes e equipe de TI</p>
         </div>
+        {params.get('motivo') === 'senha-alterada' && <p role="status" style={{ color: 'var(--final-text)', fontSize: 12 }}>Senha alterada. Entre novamente com sua nova senha.</p>}
+        {params.get('motivo') === 'inatividade' && <p role="status" className="muted">Sua sessão foi encerrada após um período sem atividade.</p>}
 
         <div className="field" style={{ marginBottom: 16 }}>
           <label htmlFor="login-email" style={{ fontSize: 15 }}>E-mail</label>

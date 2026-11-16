@@ -17,8 +17,12 @@ public final class PoliticaSenha {
         if (senha == null || !PADRAO.matcher(senha).matches()) {
             throw new RegraNegocioException(MENSAGEM);
         }
-        if (senha.getBytes(StandardCharsets.UTF_8).length > 72) {
+        if (!cabeNoBCrypt(senha)) {
             throw new RegraNegocioException("A senha excede o limite de 72 bytes.");
         }
+    }
+
+    public static boolean cabeNoBCrypt(String senha) {
+        return senha.length() <= 72 && senha.getBytes(StandardCharsets.UTF_8).length <= 72;
     }
 }

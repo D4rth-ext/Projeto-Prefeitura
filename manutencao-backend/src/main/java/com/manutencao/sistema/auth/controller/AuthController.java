@@ -4,13 +4,16 @@ import com.manutencao.sistema.auth.dto.LoginRequest;
 import com.manutencao.sistema.auth.dto.LoginResponse;
 import com.manutencao.sistema.auth.dto.SetorPublicoResponse;
 import com.manutencao.sistema.auth.service.JwtService;
+import com.manutencao.sistema.auth.service.LimiteAutenticacao;
 import com.manutencao.sistema.setor.repository.SetorRepository;
 import com.manutencao.sistema.usuario.domain.Usuario;
 import com.manutencao.sistema.usuario.dto.RegistroSolicitanteRequest;
 import com.manutencao.sistema.usuario.dto.UsuarioResponse;
 import com.manutencao.sistema.usuario.repository.UsuarioRepository;
+import com.manutencao.sistema.usuario.service.PoliticaSenha;
 import com.manutencao.sistema.usuario.service.UsuarioService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,32 +37,43 @@ public class AuthController {
     private final UsuarioService usuarioService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final LimiteAutenticacao limite;
+    private final String hashSemConta;
 
     public AuthController(UsuarioRepository usuarioRepository, SetorRepository setorRepository,
-                          UsuarioService usuarioService, PasswordEncoder passwordEncoder, JwtService jwtService) {
+                          UsuarioService usuarioService, PasswordEncoder passwordEncoder, JwtService jwtService,
+                          LimiteAutenticacao limite) {
         this.usuarioRepository = usuarioRepository;
         this.setorRepository = setorRepository;
         this.usuarioService = usuarioService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.limite = limite;
+        this.hashSemConta = passwordEncoder.encode(java.util.UUID.randomUUID().toString());
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(request.email().trim())
-                .orElseThrow(this::credenciaisInvalidas);
+    public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+        limite.registrarLogin(http.getRemoteAddr());
+        if (!PoliticaSenha.cabeNoBCrypt(request.senha())) {
+            throw credenciaisInvalidas();
+        }
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(request.email().trim()).orElse(null);
+        boolean senhaCorreta = passwordEncoder.matches(request.senha(),
+                usuario == null ? hashSemConta : usuario.getSenhaHash());
 
-        if (!usuario.isAtivo() || !passwordEncoder.matches(request.senha(), usuario.getSenhaHash())) {
+        if (!senhaCorreta || usuario == null || !usuario.isAtivo() || usuario.senhaTemporariaVencida()) {
             throw credenciaisInvalidas();
         }
 
         String token = jwtService.gerarToken(usuario.getEmail(), usuario.getPerfil().name(), usuario.getRevisaoSenha());
-        return new LoginResponse(token, usuario.getNome(), usuario.getPerfil().name());
+        return new LoginResponse(token, usuario.getNome(), usuario.getPerfil().name(), usuario.senhaTemporaria());
     }
 
     @PostMapping("/registro")
     @ResponseStatus(HttpStatus.CREATED)
-    public UsuarioResponse registro(@Valid @RequestBody RegistroSolicitanteRequest request) {
+    public UsuarioResponse registro(@Valid @RequestBody RegistroSolicitanteRequest request, HttpServletRequest http) {
+        limite.registrarCadastro(http.getRemoteAddr());
         return usuarioService.registrarSolicitante(request);
     }
 

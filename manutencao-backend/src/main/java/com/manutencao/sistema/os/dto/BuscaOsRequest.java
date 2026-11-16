@@ -19,6 +19,7 @@ public record BuscaOsRequest(
         ModalidadeOs modalidade,
         Boolean backupEmAberto,
         Boolean atrasadas,
+        Boolean encerrada,
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
         @Min(0) Integer pagina,

@@ -50,9 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/usuarios/solicitantes", "/api/v1/relatorios/os")
                                 .hasAnyRole("ADMIN", "ATENDENTE")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/usuarios/me/senha")
-                                .hasAnyRole("ADMIN", "SOLICITANTE")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/usuarios/*/senha")
-                                .hasAnyRole("ADMIN", "ATENDENTE")
+                                .hasAnyAuthority("ROLE_ADMIN", JwtAuthenticationFilter.ROLE_TROCA_OBRIGATORIA)
                         .requestMatchers("/api/v1/usuarios", "/api/v1/usuarios/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/solicitantes").hasAnyRole("ADMIN", "ATENDENTE")
                         .requestMatchers("/api/v1/equipe").hasAnyRole("ADMIN", "ATENDENTE")
@@ -67,7 +65,7 @@ public class SecurityConfig {
                                 .hasAnyRole("ADMIN", "ATENDENTE")
                         .requestMatchers("/api/v1/agendamentos", "/api/v1/agendamentos/**")
                                 .hasAnyRole("ADMIN", "ATENDENTE", "TECNICO")
-                        .anyRequest().authenticated())
+                        .anyRequest().hasAnyRole("ADMIN", "ATENDENTE", "TECNICO", "SOLICITANTE"))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

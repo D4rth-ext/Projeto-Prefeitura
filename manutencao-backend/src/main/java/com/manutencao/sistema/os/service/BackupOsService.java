@@ -33,7 +33,9 @@ public class BackupOsService {
     }
 
     public BackupOsResponse consultar(Long id, String email) {
-        acesso.consultar(id, acesso.usuario(email));
+        Usuario usuario = acesso.usuario(email);
+        acesso.exigirEquipe(usuario);
+        acesso.consultar(id, usuario);
         return protocolo(id);
     }
 
@@ -46,7 +48,7 @@ public class BackupOsService {
     public BackupOsResponse atualizar(Long id, AtualizacaoBackupRequest request, String email) {
         Usuario autor = acesso.usuario(email);
         acesso.exigirGestao(autor);
-        OrdemServico os = acesso.consultar(id, autor);
+        OrdemServico os = buscarOsParaGestao(id);
         acesso.conferirVersao(os, request.versao());
         BackupOsResponse backup = protocolo(id);
 
@@ -74,7 +76,7 @@ public class BackupOsService {
     public BackupOsResponse descartar(Long id, DescarteBackupRequest request, String email) {
         Usuario autor = acesso.usuario(email);
         acesso.exigirGestao(autor);
-        OrdemServico os = acesso.consultar(id, autor);
+        OrdemServico os = buscarOsParaGestao(id);
         acesso.conferirVersao(os, request.versao());
         BackupOsResponse backup = protocolo(id);
 
@@ -93,6 +95,12 @@ public class BackupOsService {
         auditoria.registrarEvento(id, "BACKUP", autor.getId(), backup.situacao(), "DESCARTADO",
                 "Eliminação dos dados da mídia do TI confirmada pelo responsável.");
         return protocolo(id);
+    }
+
+    private OrdemServico buscarOsParaGestao(Long id) {
+        // A gestão pode concluir descartes registrados antes da proteção contra exclusão.
+        return osRepository.buscarIncluindoExcluida(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("OS", id));
     }
 
     private BackupOsResponse protocolo(Long id) {

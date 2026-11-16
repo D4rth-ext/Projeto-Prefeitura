@@ -22,6 +22,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    public static final String ROLE_TROCA_OBRIGATORIA = "ROLE_TROCA_SENHA_OBRIGATORIA";
+
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
@@ -45,9 +47,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = claims.getSubject();
                 var usuario = usuarioRepository.findByEmailIgnoreCase(email).orElse(null);
 
-                if (usuario != null && usuario.isAtivo()
+                if (usuario != null && usuario.isAtivo() && !usuario.senhaTemporariaVencida()
                         && usuario.getRevisaoSenha().toString().equals(claims.get("revisaoSenha", String.class))) {
-                    var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + usuario.getPerfil().name()));
+                    String role = usuario.senhaTemporaria() ? ROLE_TROCA_OBRIGATORIA : "ROLE_" + usuario.getPerfil().name();
+                    var authorities = List.of(new SimpleGrantedAuthority(role));
                     var autenticacao = new UsernamePasswordAuthenticationToken(usuario.getEmail(), null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(autenticacao);
                 } else {

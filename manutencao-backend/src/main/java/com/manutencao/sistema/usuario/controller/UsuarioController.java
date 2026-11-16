@@ -1,6 +1,9 @@
 package com.manutencao.sistema.usuario.controller;
 
+import com.manutencao.sistema.usuario.domain.SituacaoCadastro;
+import com.manutencao.sistema.usuario.dto.EdicaoEquipeRequest;
 import com.manutencao.sistema.usuario.dto.RedefinicaoSenhaRequest;
+import com.manutencao.sistema.usuario.dto.SenhaTemporariaResponse;
 import com.manutencao.sistema.usuario.dto.SolicitanteResumoResponse;
 import com.manutencao.sistema.usuario.dto.UsuarioEquipeRequest;
 import com.manutencao.sistema.usuario.dto.UsuarioResponse;
@@ -10,11 +13,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
 import java.security.Principal;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,10 +52,22 @@ public class UsuarioController {
     }
 
     @PatchMapping("/{id}/senha")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void redefinirSenha(@PathVariable Long id, @Valid @RequestBody RedefinicaoSenhaRequest request,
-                               Principal principal) {
-        service.redefinirSenha(id, request, principal.getName());
+    public ResponseEntity<SenhaTemporariaResponse> redefinirSenha(@PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(service.redefinirSenha(id, principal.getName()));
+    }
+
+    @GetMapping("/cadastros-pendentes")
+    public List<UsuarioResponse> cadastrosPendentes(Principal principal) {
+        return service.cadastrosPendentes(principal.getName());
+    }
+
+    public record DecisaoCadastro(@NotNull SituacaoCadastro decisao) {}
+
+    @PatchMapping("/{id}/cadastro")
+    public UsuarioResponse decidirCadastro(@PathVariable Long id, @Valid @RequestBody DecisaoCadastro request,
+                                           Principal principal) {
+        return service.decidirCadastro(id, request.decisao(), principal.getName());
     }
 
     @PatchMapping("/me/senha")
@@ -62,6 +80,12 @@ public class UsuarioController {
     @ResponseStatus(HttpStatus.CREATED)
     public UsuarioResponse criar(@Valid @RequestBody UsuarioEquipeRequest request) {
         return service.criarEquipe(request);
+    }
+
+    @PutMapping("/{id}")
+    public UsuarioResponse editarEquipe(@PathVariable Long id, @Valid @RequestBody EdicaoEquipeRequest request,
+                                        Principal principal) {
+        return service.editarEquipe(id, request, principal.getName());
     }
 
     public record AlteracaoSetor(@NotNull @Positive Long setorId) {}

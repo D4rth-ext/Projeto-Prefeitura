@@ -21,6 +21,7 @@ public record AberturaOsRequest(
         RespostaRapida computadorLiga,
         RespostaRapida temRede,
         RespostaRapida consegueAnyDesk,
+        @NotBlank(message = "O telefone para contato é obrigatório.")
         @Size(max = 60) String contato,
         @Size(max = 100) String melhorHorario
 ) {

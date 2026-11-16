@@ -22,7 +22,7 @@ public class BuscaOsRepository {
     }
 
     public Resultado buscar(BuscaOsRequest filtro, Usuario usuario) {
-        StringBuilder condicoes = new StringBuilder(" where 1 = 1");
+        StringBuilder condicoes = new StringBuilder(" where os.excluida_em is null");
         MapSqlParameterSource parametros = new MapSqlParameterSource();
 
         if (usuario.getPerfil() == Perfil.SOLICITANTE) {
@@ -44,6 +44,10 @@ public class BuscaOsRepository {
         adicionar(condicoes, parametros, "lower(eq.numero_serie) = lower(:numeroSerie)", "numeroSerie", normalizar(filtro.numeroSerie()));
         adicionar(condicoes, parametros, "os.status = :status", "status", filtro.status() == null ? null : filtro.status().name());
         adicionar(condicoes, parametros, "os.modalidade = :modalidade", "modalidade", filtro.modalidade() == null ? null : filtro.modalidade().name());
+        // Na bancada, uma OS finalizada ainda aguarda a entrega do equipamento.
+        adicionar(condicoes, parametros,
+                "(os.status in ('ENTREGUE', 'CANCELADO') or (os.status = 'FINALIZADO' and os.modalidade <> 'BANCADA')) = :encerrada",
+                "encerrada", filtro.encerrada());
 
         if (filtro.tecnicoId() != null) {
             condicoes.append("""

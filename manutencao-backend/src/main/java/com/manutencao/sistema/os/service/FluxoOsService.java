@@ -49,7 +49,7 @@ public class FluxoOsService {
         acesso.exigirTecnicoOuAdmin(os, autor);
         acesso.conferirVersao(os, request.versao());
 
-        if (os.encerrada() || os.getStatus() == StatusOs.FINALIZADO) {
+        if (os.getStatus().terminal() || os.getStatus() == StatusOs.FINALIZADO) {
             throw new RegraNegocioException("Só é possível alterar prazo de uma OS em atendimento.");
         }
 
@@ -65,12 +65,11 @@ public class FluxoOsService {
     @Transactional
     public OrdemServicoResponse alterarStatus(Long id, StatusOsRequest request, String email) {
         Usuario autor = acesso.usuario(email);
-        acesso.exigirEquipe(autor);
         OrdemServico os = acesso.consultar(id, autor);
         acesso.conferirVersao(os, request.versao());
         StatusOs anterior = os.getStatus();
 
-        if (os.encerrada() || anterior == request.status()) {
+        if (anterior.terminal() || anterior == request.status()) {
             throw new RegraNegocioException("A OS está encerrada ou já possui o status informado.");
         }
 
@@ -81,6 +80,12 @@ public class FluxoOsService {
 
         if (request.status() == StatusOs.CANCELADO) {
             cancelar(os, request, autor);
+        } else {
+            acesso.exigirEquipe(autor);
+        }
+
+        if (request.status() == StatusOs.CANCELADO) {
+            // O cancelamento já foi validado acima.
         } else if (anterior == StatusOs.RECEBIDO && request.status() == StatusOs.EM_ANALISE) {
             iniciar(os, request, autor);
         } else if (anterior == StatusOs.EM_ANALISE && request.status() == StatusOs.AGUARDANDO_PECA) {
@@ -187,7 +192,13 @@ public class FluxoOsService {
     }
 
     private void cancelar(OrdemServico os, StatusOsRequest request, Usuario autor) {
-        if (autor.getPerfil() == Perfil.TECNICO) {
+        if (autor.getPerfil() == Perfil.SOLICITANTE) {
+            if (!os.getSolicitante().getId().equals(autor.getId())
+                    || os.getModalidade() != ModalidadeOs.PRESENCIAL
+                    || os.getStatus() != StatusOs.RECEBIDO || os.getRecebidoEm() != null) {
+                throw new RegraNegocioException("O solicitante só pode cancelar um chamado presencial antes do atendimento.");
+            }
+        } else if (autor.getPerfil() == Perfil.TECNICO) {
             acesso.exigirTecnicoOuAdmin(os, autor);
         } else {
             acesso.exigirGestao(autor);

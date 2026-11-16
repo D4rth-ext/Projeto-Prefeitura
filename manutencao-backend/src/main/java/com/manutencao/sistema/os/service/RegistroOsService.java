@@ -5,6 +5,7 @@ import com.manutencao.sistema.os.domain.OrdemServico;
 import com.manutencao.sistema.os.domain.StatusOs;
 import com.manutencao.sistema.os.domain.TipoRegistroOs;
 import com.manutencao.sistema.os.dto.EventoOsResponse;
+import com.manutencao.sistema.os.dto.HistoricoStatusResponse;
 import com.manutencao.sistema.os.dto.RegistroOsRequest;
 import com.manutencao.sistema.os.dto.RegistroOsResponse;
 import com.manutencao.sistema.os.dto.VinculoTecnicoResponse;
@@ -12,6 +13,7 @@ import com.manutencao.sistema.os.repository.OrdemServicoRepository;
 import com.manutencao.sistema.os.repository.RegistroOsRepository;
 import com.manutencao.sistema.usuario.domain.Perfil;
 import com.manutencao.sistema.usuario.domain.Usuario;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -52,7 +54,7 @@ public class RegistroOsService {
             acesso.exigirTecnicoOuAdmin(os, autor);
         }
 
-        if (os.encerrada()) {
+        if (os.getStatus().terminal()) {
             throw new RegraNegocioException("Não é possível acrescentar registros em uma OS entregue ou cancelada.");
         }
         if (observacaoSolicitante && os.getStatus() == StatusOs.FINALIZADO) {
@@ -63,15 +65,21 @@ public class RegistroOsService {
         osRepository.saveAndFlush(os);
         Long registroId = registroRepository.inserir(id, request.tipo(), autor.getId(), request.texto().trim());
 
-        return registroRepository.listar(id, false).stream()
-                .filter(registro -> registro.id().equals(registroId))
-                .findFirst().orElseThrow();
+        return registroRepository.buscarRegistro(id, registroId);
     }
 
     public List<RegistroOsResponse> listar(Long id, String email) {
         Usuario usuario = acesso.usuario(email);
         acesso.consultar(id, usuario);
         return registroRepository.listar(id, usuario.getPerfil() == Perfil.SOLICITANTE);
+    }
+
+    public List<HistoricoStatusResponse> historicoStatus(Long id, String email) {
+        OrdemServico os = acesso.consultar(id, acesso.usuario(email));
+        var historico = new ArrayList<HistoricoStatusResponse>();
+        historico.add(new HistoricoStatusResponse(null, StatusOs.RECEBIDO, os.getAbertaEm()));
+        historico.addAll(registroRepository.historicoStatus(id));
+        return historico;
     }
 
     public List<EventoOsResponse> eventos(Long id, String email) {

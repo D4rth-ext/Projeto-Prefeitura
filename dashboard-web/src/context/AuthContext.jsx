@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { api } from '../api/client'
 
 const AuthContext = createContext(null)
@@ -17,12 +17,33 @@ export function AuthProvider({ children }) {
     return salvo ? JSON.parse(salvo) : null
   })
 
+  useEffect(() => {
+    if (!usuario) return undefined
+    let temporizador
+    const reiniciar = () => {
+      clearTimeout(temporizador)
+      temporizador = setTimeout(() => {
+        localStorage.removeItem('token')
+        localStorage.removeItem('usuario')
+        setUsuario(null)
+        window.location.assign('/login?motivo=inatividade')
+      }, 15 * 60 * 1000)
+    }
+    const eventos = ['pointerdown', 'keydown', 'scroll', 'touchstart']
+    eventos.forEach(evento => window.addEventListener(evento, reiniciar, { passive: true }))
+    reiniciar()
+    return () => {
+      clearTimeout(temporizador)
+      eventos.forEach(evento => window.removeEventListener(evento, reiniciar))
+    }
+  }, [usuario])
+
   // O backend identifica o perfil; menus e rotas aplicam as permissões.
   async function login(email, senha) {
-    // POST /api/v1/auth/login -> { token, nome, perfil }
+    // POST /api/v1/auth/login -> { token, nome, perfil, trocaSenhaObrigatoria }
     const { data } = await api.post('/auth/login', { email, senha })
 
-    const usuarioLogado = { nome: data.nome, perfil: data.perfil, email }
+    const usuarioLogado = { nome: data.nome, perfil: data.perfil, email, trocaSenhaObrigatoria: data.trocaSenhaObrigatoria === true }
     localStorage.setItem('token', data.token)
     localStorage.setItem('usuario', JSON.stringify(usuarioLogado))
     setUsuario(usuarioLogado)
@@ -32,11 +53,11 @@ export function AuthProvider({ children }) {
   // Autoatendimento do funcionário (perfil SOLICITANTE no backend).
   async function cadastrar({ nome, email, senha, confirmarSenha, telefone, setorId }) {
     // POST /api/v1/auth/registro
-    await api.post('/auth/registro', {
+    const { data } = await api.post('/auth/registro', {
       nome, email, telefone, setorId: Number(setorId), senha, confirmarSenha
     })
-    // O endpoint de registro não faz login automático — loga em seguida
-    return login(email, senha)
+    // Novos cadastros aguardam aprovação administrativa e não recebem token.
+    return data
   }
 
   function logout() {

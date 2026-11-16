@@ -30,7 +30,7 @@ public class RelatorioOsService {
         this.jdbc = jdbc;
     }
 
-    public RelatorioOsResponse gerar(LocalDate inicio, LocalDate fim, Long setorId, String email) {
+    public RelatorioOsResponse gerar(LocalDate inicio, LocalDate fim, Long setorId, StatusOs statusFiltro, String email) {
         acesso.exigirGestao(acesso.usuario(email));
         if (inicio != null && fim != null && fim.isBefore(inicio)) {
             throw new RegraNegocioException("O fim do período não pode ser anterior ao início.");
@@ -46,7 +46,7 @@ public class RelatorioOsService {
                         and os.prazo_previsto < :hoje) as atrasadas
                 from ordem_servico os
                 join setor s on s.id = os.setor_id
-                where true
+                where os.excluida_em is null
                 """);
         var parametros = new MapSqlParameterSource("hoje", LocalDate.now(FUSO));
         if (inicio != null) {
@@ -60,6 +60,10 @@ public class RelatorioOsService {
         if (setorId != null) {
             sql.append(" and os.setor_id = :setorId");
             parametros.addValue("setorId", setorId);
+        }
+        if (statusFiltro != null) {
+            sql.append(" and os.status = :status");
+            parametros.addValue("status", statusFiltro.name());
         }
         sql.append("""
                  group by grouping sets ((), (os.status), (os.modalidade), (s.id, s.nome))

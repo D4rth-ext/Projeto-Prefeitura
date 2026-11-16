@@ -30,7 +30,7 @@ public class RecebimentoOsRepository {
                     recebido_em = current_timestamp,
                     atualizado_em = current_timestamp,
                     versao = versao + 1
-                where id = ? and versao = ?
+                where id = ? and versao = ? and excluida_em is null
                   and modalidade = 'BANCADA'
                   and status = 'RECEBIDO'
                   and recebido_em is null
@@ -86,7 +86,7 @@ public class RecebimentoOsRepository {
                 from ordem_servico os
                 join equipamento eq on eq.id = os.equipamento_id
                 join os_backup backup on backup.os_id = os.id
-                where os.id = ? and os.recebido_em is not null
+                where os.id = ? and os.recebido_em is not null and os.excluida_em is null
                 """,
                 (rs, linha) -> new RecebimentoOsResponse(
                         rs.getLong("os_id"),

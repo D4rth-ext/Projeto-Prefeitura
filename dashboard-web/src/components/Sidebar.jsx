@@ -11,7 +11,8 @@ const ITENS = [
   { to: '/equipamentos', label: 'Equipamentos', perfis: EQUIPE },
   { to: '/setores', label: 'Setores', perfis: GESTAO },
   { to: '/tecnicos', label: 'Usuários', perfis: [PERFIS.ADMIN] },
-  { to: '/backups', label: 'Descarte de backups', perfis: GESTAO }
+  { to: '/backups', label: 'Descarte de backups', perfis: GESTAO },
+  { to: '/relatorios', label: 'Relatórios', perfis: GESTAO }
 ]
 export default function Sidebar() {
   const { usuario, logout } = useAuth()

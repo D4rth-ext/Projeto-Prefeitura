@@ -5,7 +5,6 @@ import Sidebar from './components/Sidebar'
 import Login from './pages/Login'
 import Cadastro from './pages/Cadastro'
 import EsqueciSenha from './pages/EsqueciSenha'
-import RedefinirSenha from './pages/RedefinirSenha'
 import Perfil from './pages/Perfil'
 import Usuarios from './pages/Usuarios'
 import OrdensServico from './pages/OrdensServico'
@@ -16,6 +15,8 @@ import Equipamentos from './pages/Equipamentos'
 import Agenda from './pages/Agenda'
 import Backups from './pages/Backups'
 import Historico from './pages/Historico'
+import TrocarSenha from './pages/TrocarSenha'
+import Relatorios from './pages/Relatorios'
 
 function Layout({ children }) {
   return (
@@ -36,8 +37,10 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/acesso-equipe" element={<Navigate to="/login" replace />} />
         <Route path="/esqueci-senha" element={<EsqueciSenha />} />
-        <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+        <Route path="/redefinir-senha" element={<Navigate to="/esqueci-senha" replace />} />
+        <Route path="/trocar-senha" element={<RotaProtegida><TrocarSenha /></RotaProtegida>} />
         <Route path="/cadastro" element={<Cadastro />} />
+        <Route path="/relatorios" element={<RotaProtegida perfisPermitidos={[PERFIS.ADMIN, PERFIS.ATENDENTE]}><Layout><Relatorios /></Layout></RotaProtegida>} />
 
         <Route
           path="/"
@@ -102,10 +105,6 @@ export default function App() {
           }
         />
 
-        {/*
-          Proximas rotas a implementar, seguindo o mesmo padrao:
-          /relatorios (RF06.2 - so ADMIN)
-        */}
       </Routes>
     </AuthProvider>
   )

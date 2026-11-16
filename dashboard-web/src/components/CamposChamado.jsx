@@ -29,6 +29,11 @@ export default function CamposChamado({ form, campo }) {
       </div>
 
       <div className="field">
+        <label>Telefone para contato</label>
+        <input type="tel" maxLength={60} value={form.contato} onChange={(e) => campo('contato', e.target.value)} required />
+      </div>
+
+      <div className="field">
         <label>Descreva o problema</label>
         <textarea
           rows={4}
@@ -42,9 +47,10 @@ export default function CamposChamado({ form, campo }) {
 
       <details className="optional-fields"><summary>Adicionar informações para ajudar o atendimento <span className="muted">· opcional</span></summary><div className="form-stack">
       <div className="field">
-        <label>Patrimônio do equipamento (se souber)</label>
+        <label>Patrimônio do equipamento (opcional)</label>
         <input type="text" maxLength={40} placeholder="Ex: 0123" value={form.patrimonioInformado}
           onChange={(e) => campo('patrimonioInformado', e.target.value)} />
+        <small className="muted">Deixe em branco para serviços sem equipamento identificado, como troca de cabo de rede.</small>
       </div>
 
       <div className="form-columns">
@@ -54,10 +60,6 @@ export default function CamposChamado({ form, campo }) {
       </div>
 
       <div className="form-columns">
-        <div className="field">
-          <label>Contato (telefone / ramal)</label>
-          <input type="text" maxLength={60} value={form.contato} onChange={(e) => campo('contato', e.target.value)} />
-        </div>
         <div className="field">
           <label>Melhor horário</label>
           <input type="text" maxLength={100} placeholder="Ex: manhãs" value={form.melhorHorario}

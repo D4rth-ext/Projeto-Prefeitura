@@ -48,6 +48,18 @@ export function listarRegistros(id) {
   return api.get(`/os/${id}/registros`).then((r) => r.data)
 }
 
+export function listarHistoricoStatus(id) {
+  return api.get(`/os/${id}/historico-status`).then((r) => r.data)
+}
+
+export function listarHistoricoTecnicos(id) {
+  return api.get(`/os/${id}/tecnicos/historico`).then(r => r.data)
+}
+
+export function excluirOrdem(id) {
+  return api.delete(`/os/${id}`)
+}
+
 // { tipo: DIAGNOSTICO|ACAO|OBSERVACAO|ORIENTACAO, texto, versao }
 export function criarRegistro(id, dados) {
   return api.post(`/os/${id}/registros`, dados).then((r) => r.data)

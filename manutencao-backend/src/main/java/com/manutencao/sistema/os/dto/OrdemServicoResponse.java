@@ -47,24 +47,28 @@ public record OrdemServicoResponse(
 ) {
 
     public static OrdemServicoResponse de(OrdemServico os) {
+        return de(os, false);
+    }
+
+    public static OrdemServicoResponse de(OrdemServico os, boolean visaoSolicitante) {
         return new OrdemServicoResponse(
                 os.getId(),
                 os.getSetor().getId(),
                 os.getSetor().getNome(),
                 os.getSolicitante().getId(),
                 os.getSolicitante().getNome(),
-                os.getAbertoPor().getId(),
-                os.getAbertoPor().getNome(),
+                visaoSolicitante ? null : os.getAbertoPor().getId(),
+                visaoSolicitante ? null : os.getAbertoPor().getNome(),
                 os.getCategoria(),
                 os.getDescricaoProblema(),
                 os.getStatus(),
                 os.getModalidade(),
-                os.getPrioridade(),
-                os.getMotivoBancada(),
+                visaoSolicitante ? null : os.getPrioridade(),
+                visaoSolicitante ? null : os.getMotivoBancada(),
                 os.getAbertaEm(),
                 os.getAtualizadoEm(),
                 os.getVersao(),
-                os.getEquipamentoId(),
+                visaoSolicitante ? null : os.getEquipamentoId(),
                 os.getPatrimonioInformado(),
                 os.getComputadorLiga(),
                 os.getTemRede(),
@@ -73,10 +77,10 @@ public record OrdemServicoResponse(
                 os.getMelhorHorario(),
                 os.getPrazoPrevisto(),
                 os.getResumoSolucao(),
-                os.getAcessorios(),
-                os.getMotivoCancelamento(),
+                visaoSolicitante ? null : os.getAcessorios(),
+                visaoSolicitante ? null : os.getMotivoCancelamento(),
                 os.getRecebidoEm(),
-                os.getRetiradoPor(),
+                visaoSolicitante ? null : os.getRetiradoPor(),
                 os.getFinalizadoEm(),
                 os.getEntregueEm(),
                 os.getCanceladoEm(),

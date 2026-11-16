@@ -25,8 +25,12 @@ public class AcessoOsService {
     }
 
     public Usuario usuario(String email) {
+        return usuario(email, null);
+    }
+
+    public Usuario usuario(String email, String mensagemAusencia) {
         Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, mensagemAusencia));
 
         if (!usuario.isAtivo()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "O usuário está inativo.");
@@ -53,8 +57,12 @@ public class AcessoOsService {
     }
 
     public void exigirGestao(Usuario usuario) {
+        exigirGestao(usuario, "Ação exclusiva de admin e atendente.");
+    }
+
+    public void exigirGestao(Usuario usuario, String mensagem) {
         if (usuario.getPerfil() != Perfil.ADMIN && usuario.getPerfil() != Perfil.ATENDENTE) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin e atendente.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, mensagem);
         }
     }
 

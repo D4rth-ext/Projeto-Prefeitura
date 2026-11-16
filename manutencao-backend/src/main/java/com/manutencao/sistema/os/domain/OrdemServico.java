@@ -70,6 +70,12 @@ public class OrdemServico {
     @Column(nullable = false)
     private Long versao;
 
+    @Column(name = "excluida_em")
+    private Instant excluidaEm;
+
+    @Column(name = "excluida_por_id")
+    private Long excluidaPorId;
+
     @Column(name = "atualizado_em", nullable = false)
     private Instant atualizadoEm;
 
@@ -166,6 +172,15 @@ public class OrdemServico {
         this.melhorHorario = normalizar(melhorHorario);
     }
 
+    public void editarSolicitacao(CategoriaOs categoria, String descricaoProblema,
+            String patrimonioInformado, RespostaRapida computadorLiga, RespostaRapida temRede,
+            RespostaRapida consegueAnyDesk, String contato, String melhorHorario) {
+        this.categoria = categoria;
+        this.descricaoProblema = descricaoProblema.trim();
+        preencherAbertura(patrimonioInformado, computadorLiga, temRede, consegueAnyDesk, contato, melhorHorario);
+        registrarAlteracao();
+    }
+
     public void definirPrazo(LocalDate prazo) {
         this.prazoPrevisto = prazo;
         registrarAlteracao();
@@ -201,6 +216,12 @@ public class OrdemServico {
         alterarStatus(StatusOs.CANCELADO);
     }
 
+    public void excluir(Long administradorId) {
+        this.excluidaEm = Instant.now();
+        this.excluidaPorId = administradorId;
+        registrarAlteracao();
+    }
+
     public void registrarAlteracao() {
         this.atualizadoEm = Instant.now();
     }
@@ -208,12 +229,7 @@ public class OrdemServico {
     public boolean isAtrasada() {
         return prazoPrevisto != null
                 && prazoPrevisto.isBefore(LocalDate.now(ZoneId.of("America/Sao_Paulo")))
-                && (status == StatusOs.RECEBIDO || status == StatusOs.EM_ANALISE
-                    || status == StatusOs.AGUARDANDO_PECA);
-    }
-
-    public boolean encerrada() {
-        return status == StatusOs.ENTREGUE || status == StatusOs.CANCELADO;
+                && status.emAtendimento();
     }
 
     private void registrarDevolucao(String responsavel) {

@@ -1,5 +1,6 @@
 package com.manutencao.sistema.os.controller;
 
+import com.manutencao.sistema.os.domain.StatusOs;
 import com.manutencao.sistema.os.dto.RelatorioOsResponse;
 import com.manutencao.sistema.os.service.RelatorioOsService;
 import java.security.Principal;
@@ -25,7 +26,8 @@ public class RelatorioOsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
             @RequestParam(required = false) Long setorId,
+            @RequestParam(required = false) StatusOs status,
             Principal principal) {
-        return service.gerar(inicio, fim, setorId, principal.getName());
+        return service.gerar(inicio, fim, setorId, status, principal.getName());
     }
 }

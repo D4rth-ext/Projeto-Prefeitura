@@ -5,6 +5,10 @@ export function buscarSetores(busca = '') {
   return api.get('/setores', { params: { busca } }).then((r) => r.data)
 }
 
+export function listarTodosSetores() {
+  return api.get('/setores', { params: { incluirInativos: true } }).then(r => r.data)
+}
+
 // Lista enxuta (id, nome) para o select público da tela de Cadastro —
 // não exige login, ver GET /api/v1/auth/setores-publicos
 export function buscarSetoresPublicos() {

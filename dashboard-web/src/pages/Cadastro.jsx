@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { buscarSetoresPublicos } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
 
 export default function Cadastro() {
   const { cadastrar } = useAuth()
-  const navigate = useNavigate()
-
   const [setores, setSetores] = useState([])
   const [form, setForm] = useState({ nome: '', email: '', senha: '', confirmarSenha: '', telefone: '', setorId: '' })
   const [erro, setErro] = useState(null)
   const [enviando, setEnviando] = useState(false)
+  const [recebido, setRecebido] = useState(false)
 
   useEffect(() => {
     // RF: selecionar setor de origem entre os já cadastrados
@@ -28,7 +27,7 @@ export default function Cadastro() {
     setEnviando(true)
     try {
       await cadastrar(form)
-      navigate('/')
+      setRecebido(true)
     } catch (err) {
       // Cobre 409 (e-mail já cadastrado) e 422 (senhas não conferem), entre outros
       setErro(mensagemDeErro(err, 'Não foi possível concluir o cadastro. Verifique os dados e tente novamente.'))
@@ -44,6 +43,12 @@ export default function Cadastro() {
           <img src="/logo.png" alt="Brasão Sant'Ana do Livramento" style={{ width: 70, height: 'auto' }} />
           <h1 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Criar conta</h1>
         </div>
+
+        {recebido ? <div role="status" style={{ textAlign: 'center' }}>
+          <h2 style={{ fontSize: 16 }}>Cadastro recebido</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Aguarde a aprovação do administrador. Você poderá entrar depois que seu cadastro for aprovado.</p>
+          <Link to="/login" className="btn-primary" style={{ justifyContent: 'center', width: '100%' }}>Ir para o login</Link>
+        </div> : <>
 
         <div className="field" style={{ marginBottom: 14 }}>
           <label>Nome completo</label>
@@ -62,7 +67,7 @@ export default function Cadastro() {
 
         <div className="field" style={{ marginBottom: 14 }}>
           <label>Telefone</label>
-          <input type="text" value={form.telefone} onChange={(e) => campo('telefone', e.target.value)} />
+          <input type="tel" value={form.telefone} onChange={(e) => campo('telefone', e.target.value)} required />
         </div>
 
         <div className="field" style={{ marginBottom: 14 }}>
@@ -105,6 +110,7 @@ export default function Cadastro() {
         <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-secondary)', marginTop: 16, marginBottom: 0 }}>
           Já tem conta? <Link to="/login" style={{ color: 'var(--green)', fontWeight: 500 }}>Entrar</Link>
         </p>
+        </>}
       </form>
     </div>
   )

@@ -1,8 +1,8 @@
 import { api } from './client'
 
 // Busca por tipo, marca, patrimonio/serie ou setor
-export function buscarEquipamentos({ setorId, busca } = {}) {
-  return api.get('/equipamentos', { params: { setorId, busca } }).then((r) => r.data)
+export function buscarEquipamentos({ setorId, busca, incluirInativos } = {}) {
+  return api.get('/equipamentos', { params: { setorId, busca, incluirInativos } }).then((r) => r.data)
 }
 
 // Lista fixa (Computador, Notebook, Monitor, Impressora, Nobreak,

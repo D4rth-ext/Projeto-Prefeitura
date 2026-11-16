@@ -38,7 +38,8 @@ export const TIPOS_REGISTRO = {
   DIAGNOSTICO: 'Diagnóstico',
   ACAO: 'Ação realizada',
   OBSERVACAO: 'Observação',
-  ORIENTACAO: 'Orientação ao solicitante'
+  ORIENTACAO: 'Orientação ao solicitante',
+  OBSERVACAO_SOLICITANTE: 'Observação do solicitante'
 }
 
 export const rotulo = (mapa, valor) => (valor ? mapa[valor] || valor : '—')
