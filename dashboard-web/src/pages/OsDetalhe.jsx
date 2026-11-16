@@ -142,10 +142,7 @@ export default function OsDetalhe() {
   }, [ehGestao])
 
   async function excluirChamado() {
-    const confirmacao = perfil === 'SOLICITANTE'
-      ? `Excluir seu chamado #${os.id}? Ele deixará de aparecer nas listas, mas o registro não será apagado permanentemente.`
-      : `Excluir o chamado #${os.id}? Ele sairá das listas, mas o histórico do equipamento e a contagem de chamados serão preservados.`
-    if (!window.confirm(confirmacao)) return
+    if (!window.confirm(`Excluir o chamado #${os.id}? Ele sairá das listas, mas o histórico do equipamento e a contagem de chamados serão preservados.`)) return
     setExcluindo(true)
     setErroExclusao(null)
     try {
@@ -616,14 +613,6 @@ export default function OsDetalhe() {
         <div className="actions">
           {!encerrada && <button type="button" className="btn-secondary" onClick={() => { setRegistrando(true); setMsgRegistro(null) }}>Registrar atendimento</button>}
           {transicoes.filter(t => ['FINALIZADO', 'ENTREGUE'].includes(t.para) || (t.para === 'EM_ANALISE' && os.status !== 'FINALIZADO')).map(t => <button key={t.rotulo} type="button" className="btn-primary" onClick={() => abrirTransicao(t)}>{t.rotulo}</button>)}
-        </div>
-      </footer>}
-      {perfil === 'SOLICITANTE' && <footer className="os-action-footer">
-        <div className="actions">
-          <button type="button" className="btn-secondary" style={{ color: 'var(--red)' }} disabled={excluindo} onClick={excluirChamado}>
-            {excluindo ? 'Excluindo...' : 'Excluir meu chamado'}
-          </button>
-          {erroExclusao && <p role="alert" style={{ color: 'var(--red)', fontSize: 12 }}>{erroExclusao}</p>}
         </div>
       </footer>}
     </main>
