@@ -75,6 +75,8 @@ export default function OsDetalhe() {
   const [historicoTecnicos, setHistoricoTecnicos] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(null)
+  const [excluindo, setExcluindo] = useState(false)
+  const [erroExclusao, setErroExclusao] = useState(null)
 
   // --- ação de status ---
   const [transicao, setTransicao] = useState(null)
@@ -105,8 +107,6 @@ export default function OsDetalhe() {
   const [observacao, setObservacao] = useState('')
   const [msgObservacao, setMsgObservacao] = useState('')
   const [enviandoObservacao, setEnviandoObservacao] = useState(false)
-  const [msgExclusao, setMsgExclusao] = useState('')
-  const [excluindo, setExcluindo] = useState(false)
 
   const carregar = useCallback(async () => {
     setErro(null)
@@ -140,6 +140,23 @@ export default function OsDetalhe() {
   useEffect(() => {
     if (ehGestao) listarEquipe().then((l) => setEquipe(l.filter((u) => u.perfil === 'TECNICO'))).catch(() => setEquipe([]))
   }, [ehGestao])
+
+  async function excluirChamado() {
+    const confirmacao = perfil === 'SOLICITANTE'
+      ? `Excluir seu chamado #${os.id}? Ele deixará de aparecer nas listas, mas o registro não será apagado permanentemente.`
+      : `Excluir o chamado #${os.id}? Ele sairá das listas, mas o histórico do equipamento e a contagem de chamados serão preservados.`
+    if (!window.confirm(confirmacao)) return
+    setExcluindo(true)
+    setErroExclusao(null)
+    try {
+      await excluirOrdem(os.id)
+      navigate('/', { replace: true })
+    } catch (err) {
+      setErroExclusao(mensagemDeErro(err, 'Não foi possível excluir o chamado.'))
+    } finally {
+      setExcluindo(false)
+    }
+  }
 
   if (carregando) return <div className="content"><p style={{ color: 'var(--text-secondary)' }}>Carregando...</p></div>
   if (erro) return (
@@ -177,14 +194,6 @@ export default function OsDetalhe() {
       await carregar()
     } catch (err) { setMsgObservacao(mensagemDeErro(err, 'Não foi possível enviar a observação.')) }
     finally { setEnviandoObservacao(false) }
-  }
-
-  async function removerOrdem() {
-    if (!confirm(`Excluir a OS #${os.id}? Ela será ocultada das consultas comuns e mantida no histórico.`)) return
-    setExcluindo(true); setMsgExclusao('')
-    try { await excluirOrdem(id); navigate('/', { replace: true }) }
-    catch (err) { setMsgExclusao(mensagemDeErro(err, 'Não foi possível excluir a OS.')) }
-    finally { setExcluindo(false) }
   }
 
   function abrirTransicao(t) {
@@ -336,10 +345,6 @@ export default function OsDetalhe() {
       </header>
 
       <nav className="os-tabs content" aria-label="Seções do chamado">{abas.map(([key, label]) => <button key={key} type="button" className="tab-button" aria-pressed={aba === key} onClick={() => escolherAba(key)}>{label}</button>)}</nav>
-      {perfil === 'ADMIN' && <div className="content" style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 0 }}>
-        {msgExclusao && <p role="alert" className="erro">{msgExclusao}</p>}
-        <button type="button" className="btn-secondary" disabled={excluindo} onClick={removerOrdem}>{excluindo ? 'Excluindo…' : 'Excluir OS'}</button>
-      </div>}
       <div className={`content os-detail-grid ${ehEquipe ? '' : 'os-detail-grid-requester'}`}>
 
         {/* ---------- coluna esquerda ---------- */}
@@ -603,12 +608,25 @@ export default function OsDetalhe() {
         <details className="more-actions"><summary>Mais ações</summary><div className="more-actions-menu">
           {['ADMIN', 'TECNICO'].includes(perfil) && !encerrada && os.status !== 'FINALIZADO' && <button type="button" className="btn-secondary" onClick={() => escolherAba('prazo')}>Alterar prazo</button>}
           {transicoes.filter(t => !['FINALIZADO', 'ENTREGUE'].includes(t.para) && !(t.para === 'EM_ANALISE' && os.status !== 'FINALIZADO')).map(t => <button type="button" className="btn-secondary" key={t.rotulo} onClick={() => abrirTransicao(t)}>{t.rotulo}</button>)}
+          {perfil === 'ADMIN' && <>
+            <button type="button" className="btn-secondary" style={{ color: 'var(--red)' }} disabled={excluindo} onClick={excluirChamado}>{excluindo ? 'Excluindo...' : 'Excluir chamado'}</button>
+            {erroExclusao && <p role="alert" style={{ color: 'var(--red)', fontSize: 12 }}>{erroExclusao}</p>}
+          </>}
         </div></details>
         <div className="actions">
           {!encerrada && <button type="button" className="btn-secondary" onClick={() => { setRegistrando(true); setMsgRegistro(null) }}>Registrar atendimento</button>}
           {transicoes.filter(t => ['FINALIZADO', 'ENTREGUE'].includes(t.para) || (t.para === 'EM_ANALISE' && os.status !== 'FINALIZADO')).map(t => <button key={t.rotulo} type="button" className="btn-primary" onClick={() => abrirTransicao(t)}>{t.rotulo}</button>)}
         </div>
       </footer>}
+      {perfil === 'SOLICITANTE' && <footer className="os-action-footer">
+        <div className="actions">
+          <button type="button" className="btn-secondary" style={{ color: 'var(--red)' }} disabled={excluindo} onClick={excluirChamado}>
+            {excluindo ? 'Excluindo...' : 'Excluir meu chamado'}
+          </button>
+          {erroExclusao && <p role="alert" style={{ color: 'var(--red)', fontSize: 12 }}>{erroExclusao}</p>}
+        </div>
+      </footer>}
     </main>
   )
 }
+

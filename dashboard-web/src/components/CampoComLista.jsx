@@ -2,15 +2,20 @@ import { useRef, useState } from 'react'
 
 const normalizar = texto => texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 
-export default function CampoComLista({ id, nomeLista, itens, valor, alterar, selecionar = alterar, obrigatorio = false }) {
+export default function CampoComLista({ id, nomeLista, itens, valor, alterar, selecionar = alterar, obrigatorio = false, ramalPorItem = () => '', desabilitado = false, mensagemSemResultado = 'Nenhuma sugestão. Você pode usar o nome digitado.' }) {
   const listaId = `${id}-opcoes`
   const input = useRef(null)
   const [aberto, setAberto] = useState(false)
   const [filtrar, setFiltrar] = useState(false)
   const [ativo, setAtivo] = useState(-1)
-  const opcoes = filtrar ? itens.filter(nome => normalizar(nome).includes(normalizar(valor))) : itens
+  const opcoes = filtrar ? itens.filter(nome => {
+    const ramal = String(ramalPorItem(nome) || '')
+    const buscaNumerica = valor.replace(/\D/g, '')
+    return normalizar(`${nome} ${ramal}`).includes(normalizar(valor)) ||
+      (buscaNumerica.length > 0 && ramal.replace(/\D/g, '').includes(buscaNumerica))
+  }) : itens
   const fechar = () => { setAberto(false); setAtivo(-1) }
-  const escolher = nome => { selecionar(nome); fechar() }
+  const escolher = nome => { selecionar(nome); setFiltrar(false); fechar() }
 
   function teclado(e) {
     if (e.key === 'Escape' && aberto) { e.preventDefault(); fechar(); return }
@@ -32,18 +37,23 @@ export default function CampoComLista({ id, nomeLista, itens, valor, alterar, se
     <input ref={input} id={id} type="text" role="combobox" aria-expanded={aberto} aria-controls={listaId} aria-autocomplete="list"
       aria-activedescendant={aberto && ativo >= 0 ? `${listaId}-${ativo}` : undefined}
       autoComplete="off" value={valor} required={obrigatorio}
-      onClick={() => setAberto(true)} onKeyDown={teclado}
+      disabled={desabilitado} onClick={() => setAberto(true)} onKeyDown={teclado}
       onChange={e => { alterar(e.target.value); setFiltrar(true); setAberto(true); setAtivo(-1) }} />
-    <button type="button" aria-label={`${aberto ? 'Fechar' : 'Abrir'} lista de ${nomeLista}`} aria-expanded={aberto} aria-controls={listaId}
+    <button type="button" disabled={desabilitado} aria-label={`${aberto ? 'Fechar' : 'Abrir'} lista de ${nomeLista}`} aria-expanded={aberto} aria-controls={listaId}
       onClick={() => { input.current.focus(); setFiltrar(false); setAtivo(-1); setAberto(!aberto) }}>
       <i className={`ti ${aberto ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" />
     </button>
     <div className="seletor-setor-lista" hidden={!aberto}>
       <ul id={listaId} role="listbox" aria-label={`Sugestões de ${nomeLista}`}>
-        {aberto && opcoes.map((nome, i) => <li key={nome} id={`${listaId}-${i}`} role="option" aria-selected={ativo === i}
-          onMouseDown={e => e.preventDefault()} onClick={() => escolher(nome)}>{nome}</li>)}
+        {aberto && opcoes.map((nome, i) => {
+          const ramal = ramalPorItem(nome)
+          return <li key={nome} id={`${listaId}-${i}`} role="option" aria-selected={ativo === i}
+            onMouseDown={e => e.preventDefault()} onClick={() => escolher(nome)}>
+            {nome}{ramal ? ` · Ramal ${ramal}` : ''}
+          </li>
+        })}
       </ul>
-      {aberto && !opcoes.length && <p role="status">Nenhuma sugestão. Você pode usar o nome digitado.</p>}
+      {aberto && !opcoes.length && <p role="status">{mensagemSemResultado}</p>}
     </div>
   </div>
 }

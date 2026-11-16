@@ -3,6 +3,8 @@ import { buscarUsuarios, criarUsuario, inativarUsuario, alterarSetorUsuario, bus
 import { buscarSetoresPublicos } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
 import { useAuth } from '../context/AuthContext'
+import CampoComLista from '../components/CampoComLista'
+import { telefoneDoSetor } from '../utils/catalogoSetores'
 
 const VAZIO = { nome: '', email: '', senha: '', telefone: '', perfil: 'ATENDENTE' }
 
@@ -31,6 +33,7 @@ export default function Usuarios() {
   const [funcionario, setFuncionario] = useState(null)
   const [setoresAtivos, setSetoresAtivos] = useState([])
   const [novoSetor, setNovoSetor] = useState('')
+  const [novoSetorNome, setNovoSetorNome] = useState('')
   const [ocupadoSetor, setOcupadoSetor] = useState(false)
   const [erroSetor, setErroSetor] = useState('')
   const [senhaTemporaria, setSenhaTemporaria] = useState(null)
@@ -38,7 +41,7 @@ export default function Usuarios() {
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
 
   async function abrirTroca(u) {
-    setFuncionario(u); setNovoSetor(''); setSetoresAtivos([]); setErroSetor(''); setOcupadoSetor(true)
+    setFuncionario(u); setNovoSetor(''); setNovoSetorNome(''); setSetoresAtivos([]); setErroSetor(''); setOcupadoSetor(true)
     try {
       const setores = await buscarSetoresPublicos()
       setSetoresAtivos(setores.filter(s => s.id !== u.setor?.id))
@@ -255,10 +258,22 @@ export default function Usuarios() {
           <p>Setor atual: {funcionario.setor?.nome || 'Não informado'}. A mudança vale para novos chamados.</p>
           <div className="field">
             <label htmlFor="novo-setor-funcionario">Novo setor</label>
-            <select id="novo-setor-funcionario" required disabled={ocupadoSetor} value={novoSetor} onChange={e => setNovoSetor(e.target.value)}>
-              <option value="">Selecione um setor ativo</option>
-              {setoresAtivos.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}
-            </select>
+            <CampoComLista
+              id="novo-setor-funcionario"
+              nomeLista="setores ativos"
+              itens={setoresAtivos.map((setor) => setor.nome)}
+              valor={novoSetorNome}
+              alterar={(nome) => { setNovoSetorNome(nome); setNovoSetor('') }}
+              selecionar={(nome) => {
+                const setor = setoresAtivos.find((item) => item.nome === nome)
+                setNovoSetorNome(nome)
+                setNovoSetor(setor ? String(setor.id) : '')
+              }}
+              obrigatorio
+              desabilitado={ocupadoSetor}
+              ramalPorItem={telefoneDoSetor}
+              mensagemSemResultado="Nenhum setor encontrado. Escolha um da lista."
+            />
           </div>
           {erroSetor && <p className="erro" role="alert">{erroSetor}</p>}
           {!ocupadoSetor && !erroSetor && !setoresAtivos.length && <p>Nenhum outro setor ativo disponível.</p>}
@@ -277,7 +292,7 @@ export default function Usuarios() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--page-bg)' }}>
-                    {['Nome', 'E-mail', 'Perfil', 'Setor', 'Situação', ''].map((col) => (
+                    {['Nome', 'E-mail', 'Perfil', 'Setor', ...(aba === 'FUNCIONARIOS' ? ['Chamados abertos'] : []), 'Situação', ''].map((col) => (
                       <th key={col} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
                         {col}
                       </th>
@@ -293,6 +308,7 @@ export default function Usuarios() {
                         <td style={{ ...celula, color: 'var(--text-secondary)' }}>{u.email}</td>
                         <td style={celula}>{LABEL_PERFIL[u.perfil] || u.perfil}</td>
                         <td style={{ ...celula, color: 'var(--text-secondary)' }}>{u.setor?.nome || '—'}</td>
+                        {aba === 'FUNCIONARIOS' && <td style={celula}>{u.chamadosAbertos ?? 0}</td>}
                         <td style={celula}>
                           {u.situacaoCadastro === 'PENDENTE' ? <span className="badge badge-recebido">Aguardando aprovação</span> : u.situacaoCadastro === 'REJEITADO' ? <span className="badge badge-cancelado">Cadastro rejeitado</span> : <span className={`badge ${u.ativo ? 'badge-finalizado' : 'badge-entregue'}`}>{u.ativo ? 'Ativo' : 'Inativo'}</span>}
                         </td>
@@ -319,3 +335,4 @@ export default function Usuarios() {
     </div>
   )
 }
+

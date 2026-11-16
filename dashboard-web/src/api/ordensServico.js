@@ -21,6 +21,10 @@ export function buscarOrdem(id) {
   return api.get(`/os/${id}`).then((r) => r.data)
 }
 
+export function excluirOrdem(id) {
+  return api.delete(`/os/${id}`)
+}
+
 // Solicitante abre em nome próprio; Admin/Atendente precisam informar
 // solicitanteId. Técnico não pode abrir (403). O setor vem do solicitante.
 export function abrirOrdem(dados) {
@@ -56,9 +60,6 @@ export function listarHistoricoTecnicos(id) {
   return api.get(`/os/${id}/tecnicos/historico`).then(r => r.data)
 }
 
-export function excluirOrdem(id) {
-  return api.delete(`/os/${id}`)
-}
 
 // { tipo: DIAGNOSTICO|ACAO|OBSERVACAO|ORIENTACAO, texto, versao }
 export function criarRegistro(id, dados) {

@@ -7,7 +7,7 @@ export default function EsqueciSenha() {
         <img src="/logo.png" alt="Brasão Sant'Ana do Livramento" style={{ width: 70, height: 'auto' }} />
         <h1 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Solicitar senha temporária</h1>
       </div>
-      <p style={{ fontSize: 13, lineHeight: 1.6 }}>A recuperação por e-mail não está disponível. Peça ao administrador uma senha temporária. Ela vale por 24 horas e o sistema solicitará uma senha definitiva no próximo acesso.</p>
+      <p style={{ fontSize: 13, lineHeight: 1.6 }}>A recuperação por e-mail não está disponível. Peça ao administrador uma senha temporária. Ela vale por 24 horas e o sistema solicitará uma senha definitiva no próximo acesso. Se precisar de ajuda, contate o DTI pelo telefone <a href="tel:+555539681133">(55) 3968-1133</a>.</p>
       <Link to="/login" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>Voltar ao login</Link>
     </section>
   </main>

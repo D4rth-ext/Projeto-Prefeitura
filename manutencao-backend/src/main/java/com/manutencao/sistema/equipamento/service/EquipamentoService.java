@@ -45,7 +45,7 @@ public class EquipamentoService {
             return List.of();
         }
         List<Long> ids = equipamentos.stream().map(Equipamento::getId).toList();
-        Map<Long, Long> totais = ordemServicoRepository.contarPorEquipamento(ids, StatusOs.FINALIZADO)
+        Map<Long, Long> totais = ordemServicoRepository.contarPorEquipamento(ids, statusDeConsertoConcluido())
                 .stream().collect(Collectors.toMap(TotalPorEquipamento::getEquipamentoId, TotalPorEquipamento::getTotal));
         return equipamentos.stream()
                 .map(equipamento -> EquipamentoResponse.de(equipamento, totais.getOrDefault(equipamento.getId(), 0L)))
@@ -103,8 +103,16 @@ public class EquipamentoService {
     }
 
     private EquipamentoResponse respostaComTotal(Equipamento equipamento) {
-        long total = ordemServicoRepository.countByEquipamentoIdAndStatus(equipamento.getId(), StatusOs.FINALIZADO);
+        long total = ordemServicoRepository.contarPorEquipamento(List.of(equipamento.getId()), statusDeConsertoConcluido())
+                .stream()
+                .findFirst()
+                .map(TotalPorEquipamento::getTotal)
+                .orElse(0L);
         return EquipamentoResponse.de(equipamento, total);
+    }
+
+    private List<StatusOs> statusDeConsertoConcluido() {
+        return List.of(StatusOs.FINALIZADO, StatusOs.ENTREGUE);
     }
 
     private Setor obterSetorAtivo(Long setorId) {
@@ -150,3 +158,4 @@ public class EquipamentoService {
     private record Dados(String marca, String modelo, String patrimonio, String numeroSerie, String observacoes) {
     }
 }
+

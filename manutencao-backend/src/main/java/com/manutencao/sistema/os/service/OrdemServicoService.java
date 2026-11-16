@@ -146,11 +146,17 @@ public class OrdemServicoService {
 
     @Transactional
     public void excluir(Long id, String email) {
-        Usuario administrador = acesso.usuario(email, "Usuário autenticado não encontrado.");
-        if (administrador.getPerfil() != Perfil.ADMIN) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
+        Usuario autor = acesso.usuario(email, "Usuário autenticado não encontrado.");
+        OrdemServico os = acesso.consultar(id, autor);
+
+        boolean ehAdministrador = autor.getPerfil() == Perfil.ADMIN;
+        boolean ehSolicitanteDaOs = autor.getPerfil() == Perfil.SOLICITANTE
+                && os.getSolicitante().getId().equals(autor.getId());
+        if (!ehAdministrador && !ehSolicitanteDaOs) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Você só pode excluir chamados abertos por você.");
         }
-        OrdemServico os = acesso.consultar(id, administrador);
+
         if (os.getRecebidoEm() != null && os.getEntregueEm() == null) {
             throw new RegraNegocioException("Registre a devolução do equipamento antes de excluir a OS.");
         }
@@ -158,7 +164,8 @@ public class OrdemServicoService {
                 .isPresent()) {
             throw new RegraNegocioException("Confirme o descarte do backup antes de excluir a OS.");
         }
-        os.excluir(administrador.getId());
+
+        os.excluir(autor.getId());
         osRepository.saveAndFlush(os);
     }
 
@@ -208,3 +215,4 @@ public class OrdemServicoService {
         return solicitante;
     }
 }
+
