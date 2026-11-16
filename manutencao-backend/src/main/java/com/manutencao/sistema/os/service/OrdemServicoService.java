@@ -146,17 +146,11 @@ public class OrdemServicoService {
 
     @Transactional
     public void excluir(Long id, String email) {
-        Usuario autor = acesso.usuario(email, "Usuário autenticado não encontrado.");
-        OrdemServico os = acesso.consultar(id, autor);
-
-        boolean ehAdministrador = autor.getPerfil() == Perfil.ADMIN;
-        boolean ehSolicitanteDaOs = autor.getPerfil() == Perfil.SOLICITANTE
-                && os.getSolicitante().getId().equals(autor.getId());
-        if (!ehAdministrador && !ehSolicitanteDaOs) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Você só pode excluir chamados abertos por você.");
+        Usuario administrador = acesso.usuario(email, "Usuário autenticado não encontrado.");
+        if (administrador.getPerfil() != Perfil.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ação exclusiva de admin.");
         }
-
+        OrdemServico os = acesso.consultar(id, administrador);
         if (os.getRecebidoEm() != null && os.getEntregueEm() == null) {
             throw new RegraNegocioException("Registre a devolução do equipamento antes de excluir a OS.");
         }
@@ -164,11 +158,9 @@ public class OrdemServicoService {
                 .isPresent()) {
             throw new RegraNegocioException("Confirme o descarte do backup antes de excluir a OS.");
         }
-
-        os.excluir(autor.getId());
+        os.excluir(administrador.getId());
         osRepository.saveAndFlush(os);
     }
-
     private List<OrdemServico> listarDoTecnico(Long tecnicoId) {
         List<Long> ids = osRepository.buscarIdsPorTecnicoAtivo(tecnicoId);
 
