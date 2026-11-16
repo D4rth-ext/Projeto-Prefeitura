@@ -6,4 +6,5 @@ spring:
 
 app:
   jwt:
-    segredo: ${JWT_SECRET}
+    segredo: ${JWT_SECRET:local-dev-only-not-for-production-JWT-key-0123456789-abcdef0123456789}
+
