@@ -105,6 +105,15 @@ export default function App() {
           }
         />
 
+        <Route
+          path="/cadastros-pendentes"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS.ADMIN]}>
+              <Layout><Usuarios somentePendentes /></Layout>
+            </RotaProtegida>
+          }
+        />
+
       </Routes>
     </AuthProvider>
   )
