@@ -11,6 +11,7 @@ const ITENS = [
   { to: '/equipamentos', label: 'Equipamentos', perfis: EQUIPE },
   { to: '/setores', label: 'Setores', perfis: GESTAO },
   { to: '/tecnicos', label: 'Usuários', perfis: [PERFIS.ADMIN] },
+  { to: '/cadastros-pendentes', label: 'Aprovação de cadastros', perfis: [PERFIS.ADMIN] },
   { to: '/backups', label: 'Descarte de backups', perfis: GESTAO },
   { to: '/relatorios', label: 'Relatórios', perfis: GESTAO }
 ]
