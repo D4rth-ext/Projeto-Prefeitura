@@ -17,11 +17,11 @@ const LABEL_PERFIL = {
 
 const celula = { padding: '13px 14px', borderBottom: '1px solid var(--border)' }
 
-export default function Usuarios() {
+export default function Usuarios({ somentePendentes = false }) {
   const { usuario: logado } = useAuth()
   const [usuarios, setUsuarios] = useState([])
   const [pendentes, setPendentes] = useState([])
-  const [aba, setAba] = useState('EQUIPE') // EQUIPE | TECNICOS | FUNCIONARIOS | PENDENTES
+  const [aba, setAba] = useState('EQUIPE') // EQUIPE | TECNICOS | FUNCIONARIOS
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(null)
@@ -113,7 +113,7 @@ export default function Usuarios() {
     [usuarios, aba, busca]
   )
 
-  const listaExibida = aba === 'PENDENTES'
+  const listaExibida = somentePendentes
     ? pendentes.filter(u => `${u.nome} ${u.email} ${u.setor?.nome || ''}`.toLocaleLowerCase().includes(busca.toLocaleLowerCase()))
     : lista
 
@@ -165,19 +165,19 @@ export default function Usuarios() {
       }}>
         <h1 style={{ fontSize: 18, fontWeight: 500, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
           <i className="ti ti-users" style={{ color: 'var(--green)' }} />
-          Técnicos e usuários
+          {somentePendentes ? 'Aprovação de cadastros' : 'Técnicos e usuários'}
         </h1>
-        <button className="btn-primary" onClick={() => setMostrarForm((v) => !v)}>
-          <i className="ti ti-plus" />
-          Novo usuário da equipe
-        </button>
+        {somentePendentes
+          ? <button type="button" className="btn-secondary" onClick={carregar} disabled={carregando}><i className="ti ti-refresh" /> Atualizar</button>
+          : <button className="btn-primary" onClick={() => setMostrarForm((v) => !v)}><i className="ti ti-plus" /> Novo usuário da equipe</button>}
       </div>
 
       <div className="content">
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 0, marginBottom: 20 }}>
+        {!somentePendentes && <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 0, marginBottom: 20 }}>
           <strong>Equipe</strong> (Administrador, Técnico, Atendente) é criada aqui. Os{' '}
           <strong>funcionários</strong> se cadastram sozinhos pela tela de autocadastro, vinculados a um setor.
-        </p>
+        </p>}
+        {somentePendentes && <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 0, marginBottom: 20 }}>Confira os dados dos funcionários e aprove ou rejeite cada solicitação de cadastro.</p>}
 
         {mostrarForm && (
           <form onSubmit={handleSalvar} className="card" style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 420 }}>
@@ -243,12 +243,11 @@ export default function Usuarios() {
           <button type="button" className="btn-secondary" onClick={() => setSenhaTemporaria(null)}>Fechar e apagar da tela</button>
         </section>}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        {!somentePendentes && <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <button type="button" style={abaStyle(aba === 'EQUIPE')} disabled={ocupadoSetor} onClick={() => { setAba('EQUIPE'); setFuncionario(null) }}>Administração e atendimento</button>
           <button type="button" style={abaStyle(aba === 'TECNICOS')} onClick={() => setAba('TECNICOS')}>Técnicos</button>
           <button type="button" style={abaStyle(aba === 'FUNCIONARIOS')} onClick={() => setAba('FUNCIONARIOS')}>Funcionários</button>
-          <button type="button" style={abaStyle(aba === 'PENDENTES')} onClick={() => setAba('PENDENTES')}>Cadastros pendentes ({pendentes.length})</button>
-        </div>
+        </div>}
 
         <input type="search" aria-label="Pesquisar usuários" placeholder="Pesquisar por nome, e-mail ou setor" value={busca}
           onChange={e => setBusca(e.target.value)} style={{ width: '100%', marginBottom: 14 }} />
@@ -284,7 +283,7 @@ export default function Usuarios() {
           {erro && <p style={{ padding: 18, color: 'var(--red)' }}>{erro}</p>}
           {!carregando && listaExibida.length === 0 && (
             <p style={{ padding: 18, color: 'var(--text-secondary)' }}>
-              {aba === 'PENDENTES' ? 'Nenhum cadastro aguardando aprovação.' : aba === 'EQUIPE' ? 'Nenhum membro da equipe cadastrado.' : 'Nenhum funcionário cadastrado.'}
+              {somentePendentes ? 'Nenhum cadastro aguardando aprovação.' : aba === 'EQUIPE' ? 'Nenhum membro da equipe cadastrado.' : aba === 'TECNICOS' ? 'Nenhum técnico cadastrado.' : 'Nenhum funcionário cadastrado.'}
             </p>
           )}
           {!carregando && listaExibida.length > 0 && (
@@ -292,7 +291,7 @@ export default function Usuarios() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--page-bg)' }}>
-                    {['Nome', 'E-mail', 'Perfil', 'Setor', ...(aba === 'FUNCIONARIOS' ? ['Chamados abertos'] : []), 'Situação', ''].map((col) => (
+                    {['Nome', 'E-mail', 'Perfil', 'Setor', ...(!somentePendentes && aba === 'FUNCIONARIOS' ? ['Chamados abertos'] : []), 'Situação', ''].map((col) => (
                       <th key={col} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
                         {col}
                       </th>
@@ -303,25 +302,34 @@ export default function Usuarios() {
                   {listaExibida.map((u) => {
                     const ehVoce = u.email?.toLowerCase() === logado?.email?.toLowerCase()
                     return (
-                      <tr key={u.id} style={{ opacity: u.ativo ? 1 : 0.5 }}>
+                      <tr key={u.id} style={{ opacity: somentePendentes || u.ativo ? 1 : 0.5 }}>
                         <td style={{ ...celula, fontWeight: 500 }}>{u.nome}{ehVoce ? ' (você)' : ''}</td>
                         <td style={{ ...celula, color: 'var(--text-secondary)' }}>{u.email}</td>
                         <td style={celula}>{LABEL_PERFIL[u.perfil] || u.perfil}</td>
                         <td style={{ ...celula, color: 'var(--text-secondary)' }}>{u.setor?.nome || '—'}</td>
-                        {aba === 'FUNCIONARIOS' && <td style={celula}>{u.chamadosAbertos ?? 0}</td>}
+                        {!somentePendentes && aba === 'FUNCIONARIOS' && <td style={celula}>{u.chamadosAbertos ?? 0}</td>}
                         <td style={celula}>
                           {u.situacaoCadastro === 'PENDENTE' ? <span className="badge badge-recebido">Aguardando aprovação</span> : u.situacaoCadastro === 'REJEITADO' ? <span className="badge badge-cancelado">Cadastro rejeitado</span> : <span className={`badge ${u.ativo ? 'badge-finalizado' : 'badge-entregue'}`}>{u.ativo ? 'Ativo' : 'Inativo'}</span>}
                         </td>
                         <td style={{ ...celula, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {aba === 'PENDENTES' && <><button type="button" className="btn-primary" onClick={() => decidir(u, 'APROVADO')}>Aprovar</button> <button type="button" className="btn-secondary" onClick={() => decidir(u, 'REJEITADO')}>Rejeitar</button></>}
-                          {u.ativo && u.perfil === 'SOLICITANTE' && <button type="button" className="btn-secondary" disabled={ocupadoSetor} onClick={() => abrirTroca(u)}>Alterar setor</button>}
-                          {u.ativo && u.perfil !== 'SOLICITANTE' && <button type="button" className="btn-secondary" onClick={() => { setEditandoEquipe({ id: u.id, nome: u.nome, email: u.email, telefone: u.telefone || '' }); setErroForm(null) }}>Editar</button>}
-                          {u.ativo && !ehVoce && <button type="button" className="btn-secondary" onClick={() => gerarSenhaTemporaria(u)}>Senha temporária</button>}
-                          {u.ativo && !ehVoce && (
+                          {somentePendentes
+                            ? (
+                              <>
+                                <button type="button" className="btn-primary" onClick={() => decidir(u, 'APROVADO')}>Aprovar</button>{' '}
+                                <button type="button" className="btn-secondary" onClick={() => decidir(u, 'REJEITADO')}>Rejeitar</button>
+                              </>
+                            ) : (
+                              <>
+                                {u.ativo && u.perfil === 'SOLICITANTE' && <button type="button" className="btn-secondary" disabled={ocupadoSetor} onClick={() => abrirTroca(u)}>Alterar setor</button>}
+                                {u.ativo && u.perfil !== 'SOLICITANTE' && <button type="button" className="btn-secondary" onClick={() => { setEditandoEquipe({ id: u.id, nome: u.nome, email: u.email, telefone: u.telefone || '' }); setErroForm(null) }}>Editar</button>}
+                                {u.ativo && !ehVoce && <button type="button" className="btn-secondary" onClick={() => gerarSenhaTemporaria(u)}>Senha temporária</button>}
+                                {u.ativo && !ehVoce && (
                             <button onClick={() => handleExcluir(u)} title="Excluir" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 12, color: 'var(--red)' }}>
                               <i className="ti ti-trash" /> Excluir
                             </button>
-                          )}
+                                )}
+                              </>
+                            )}
                         </td>
                       </tr>
                     )
@@ -335,4 +343,3 @@ export default function Usuarios() {
     </div>
   )
 }
-
