@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   buscarOrdem, triarOrdem, alterarStatus, listarRegistros, criarRegistro,
-  listarEventos, listarTecnicosDaOs, listarEquipe, editarChamado, listarHistoricoStatus, listarHistoricoTecnicos, excluirOrdem
+  listarEventos, listarTecnicosDaOs, listarEquipe, editarChamado, listarHistoricoStatus, listarHistoricoTecnicos, excluirOrdem, atualizarPatrimonioOs
 } from '../api/ordensServico'
 import { mensagemDeErro } from '../api/erro'
 import StatusBadge from '../components/StatusBadge'
@@ -60,6 +60,7 @@ function Linha({ rotuloCampo, children }) {
 
 export default function OsDetalhe() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { usuario } = useAuth()
   const perfil = usuario?.perfil
@@ -67,7 +68,7 @@ export default function OsDetalhe() {
   const ehGestao = perfil === 'ADMIN' || perfil === 'ATENDENTE'
 
   const [os, setOs] = useState(null)
-  const [abaEscolhida, setAba] = useState(null)
+  const [abaEscolhida, setAba] = useState(() => searchParams.get('aba'))
   const [registrando, setRegistrando] = useState(false)
   const [registros, setRegistros] = useState([])
   const [eventos, setEventos] = useState([])
@@ -77,6 +78,10 @@ export default function OsDetalhe() {
   const [erro, setErro] = useState(null)
   const [excluindo, setExcluindo] = useState(false)
   const [erroExclusao, setErroExclusao] = useState(null)
+  const [editandoPatrimonio, setEditandoPatrimonio] = useState(false)
+  const [patrimonioNovo, setPatrimonioNovo] = useState('')
+  const [erroPatrimonio, setErroPatrimonio] = useState('')
+  const [salvandoPatrimonio, setSalvandoPatrimonio] = useState(false)
 
   // --- ação de status ---
   const [transicao, setTransicao] = useState(null)
@@ -183,6 +188,7 @@ export default function OsDetalhe() {
     return true
   }) : []
   const apontamentos = registros.filter((r) => r.tipo === 'DIAGNOSTICO' || r.tipo === 'ACAO')
+  const temDiagnostico = registros.some((r) => r.tipo === 'DIAGNOSTICO')
   const podeObservar = perfil === 'SOLICITANTE' && ['RECEBIDO', 'EM_ANALISE', 'AGUARDANDO_PECA'].includes(os.status)
 
   async function enviarObservacao(e) {
@@ -196,6 +202,16 @@ export default function OsDetalhe() {
     finally { setEnviandoObservacao(false) }
   }
 
+  async function salvarPatrimonio(e) {
+    e.preventDefault(); setErroPatrimonio(''); setSalvandoPatrimonio(true)
+    try {
+      await atualizarPatrimonioOs(os.id, { patrimonioInformado: patrimonioNovo.trim(), versao: os.versao })
+      setEditandoPatrimonio(false)
+      await carregar()
+    } catch (err) { setErroPatrimonio(mensagemDeErro(err, 'Não foi possível atualizar o patrimônio.')) }
+    finally { setSalvandoPatrimonio(false) }
+  }
+
   function abrirTransicao(t) {
     setRegistrando(false)
     setAba('atendimento')
@@ -206,6 +222,10 @@ export default function OsDetalhe() {
 
   async function enviarStatus(e) {
     e.preventDefault()
+    if (transicao.para === 'FINALIZADO' && !temDiagnostico) {
+      setMsgStatus('Registre pelo menos um diagnóstico antes de finalizar este chamado.')
+      return
+    }
     setEnviandoStatus(true)
     setMsgStatus(null)
     const corpo = { status: transicao.para, versao: os.versao }
@@ -253,6 +273,10 @@ export default function OsDetalhe() {
 
   async function enviarRegistro(e) {
     e.preventDefault()
+    if (['DIAGNOSTICO', 'ACAO'].includes(novoRegistro.tipo) && os.status !== 'EM_ANALISE') {
+      setMsgRegistro('Inicie a análise do chamado antes de registrar diagnóstico ou ação.')
+      return
+    }
     setEnviandoRegistro(true)
     setMsgRegistro(null)
     try {
@@ -410,7 +434,7 @@ export default function OsDetalhe() {
             <h2 style={{ fontSize: 14, fontWeight: 500, margin: '0 0 14px' }}>Registros do atendimento</h2>
             <h3 style={{ fontSize: 13 }}>Histórico de status</h3>
             {!historicoStatus.length && <p className="muted">Nenhuma mudança de status registrada.</p>}
-            <ol className="historico-eventos">{historicoStatus.map((h, i) => <li key={`${h.criadoEm}-${i}`}><span className="muted">{formatarDataHora(h.criadoEm)}</span><div>{h.anterior ? `${rotulo({ RECEBIDO: 'Recebido', EM_ANALISE: 'Em análise', AGUARDANDO_PECA: 'Aguardando peça', FINALIZADO: 'Finalizado', ENTREGUE: 'Entregue', CANCELADO: 'Cancelado' }, h.anterior)} → ` : 'Abertura · '}{rotulo({ RECEBIDO: 'Recebido', EM_ANALISE: 'Em análise', AGUARDANDO_PECA: 'Aguardando peça', FINALIZADO: 'Finalizado', ENTREGUE: 'Entregue', CANCELADO: 'Cancelado' }, h.status)}</div></li>)}</ol>
+            <ol className="historico-eventos">{historicoStatus.map((h, i) => <li key={`${h.criadoEm}-${i}`}><span className="muted">{formatarDataHora(h.criadoEm)} · {h.autorNome || 'Usuário'}</span><div>{h.anterior ? `${rotulo({ RECEBIDO: 'Recebido', EM_ANALISE: 'Em análise', AGUARDANDO_PECA: 'Aguardando peça', FINALIZADO: 'Finalizado', ENTREGUE: 'Entregue', CANCELADO: 'Cancelado' }, h.anterior)} → ` : 'Abertura · '}{rotulo({ RECEBIDO: 'Recebido', EM_ANALISE: 'Em análise', AGUARDANDO_PECA: 'Aguardando peça', FINALIZADO: 'Finalizado', ENTREGUE: 'Entregue', CANCELADO: 'Cancelado' }, h.status)}</div></li>)}</ol>
             {registros.length === 0 && <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Nenhum registro ainda.</p>}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {registros.map((r) => (
@@ -443,12 +467,12 @@ export default function OsDetalhe() {
                 <div className="field">
                   <label>Novo registro</label>
                   <select value={novoRegistro.tipo} onChange={(e) => setNovoRegistro({ ...novoRegistro, tipo: e.target.value })}>
-                    {Object.entries(TIPOS_REGISTRO).filter(([v]) => perfil !== 'ATENDENTE' || !['DIAGNOSTICO', 'ACAO'].includes(v)).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                    {Object.entries(TIPOS_REGISTRO).filter(([v]) => (perfil !== 'ATENDENTE' || !['DIAGNOSTICO', 'ACAO'].includes(v)) && (os.status === 'EM_ANALISE' || !['DIAGNOSTICO', 'ACAO'].includes(v))).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                   </select>
                 </div>
                 <textarea rows={3} style={textarea} required value={novoRegistro.texto}
                   onChange={(e) => setNovoRegistro({ ...novoRegistro, texto: e.target.value })} placeholder="Escreva o registro" />
-                {msgRegistro && <p style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}>{msgRegistro}</p>}
+                {msgRegistro && <p role="alert" className="erro">{msgRegistro}</p>}
                 <div><button type="submit" className="btn-primary" disabled={enviandoRegistro}>{enviandoRegistro ? 'Salvando...' : 'Salvar registro'}</button><button type="button" className="btn-secondary" onClick={() => setRegistrando(false)}>Voltar</button></div>
               </form>
             )}
@@ -496,7 +520,7 @@ export default function OsDetalhe() {
                     <div className="field">
                       <label>Resumo da solução</label>
                       <textarea rows={3} style={textarea} required value={campos.resumoSolucao || ''} onChange={(e) => setCampos({ ...campos, resumoSolucao: e.target.value })} />
-                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>Exige ao menos um diagnóstico registrado.</p>
+                      {!temDiagnostico && <p role="alert" className="erro">Registre um diagnóstico antes de finalizar o chamado.</p>}
                     </div>
                   )}
                   {transicao.campos.includes('justificativa') && (
@@ -514,7 +538,7 @@ export default function OsDetalhe() {
 
                   {msgStatus && <p style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}>{msgStatus}</p>}
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="submit" className="btn-primary" disabled={enviandoStatus}>{enviandoStatus ? 'Salvando...' : `Confirmar: ${transicao.rotulo}`}</button>
+                    <button type="submit" className="btn-primary" disabled={enviandoStatus || (transicao.para === 'FINALIZADO' && !temDiagnostico)}>{enviandoStatus ? 'Salvando...' : `Confirmar: ${transicao.rotulo}`}</button>
                     <button type="button" onClick={() => setTransicao(null)} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 14px', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
                   </div>
                 </form>
@@ -587,7 +611,7 @@ export default function OsDetalhe() {
                   <div key={ev.id} style={{ fontSize: 12 }}>
                     <div style={{ color: 'var(--text-secondary)' }}>{formatarDataHora(ev.criadoEm)} · {ev.autorNome}</div>
                     <div>
-                      <strong>{ev.tipo}</strong>: {ev.valorAnterior ? `${ev.valorAnterior} → ` : ''}{ev.valorNovo}
+                      <strong>{{ STATUS: 'Status', MODALIDADE: 'Modalidade', PRIORIDADE: 'Prioridade', PRAZO: 'Prazo alterado', PATRIMONIO: 'Patrimônio corrigido', TECNICO_ENTROU: 'Técnico vinculado', TECNICO_SAIU: 'Técnico removido', RECEBIMENTO: 'Recebimento', BACKUP: 'Backup' }[ev.tipo] || ev.tipo}</strong>: {ev.valorAnterior ? `${ev.valorAnterior} → ` : ''}{ev.valorNovo}
                       {ev.motivo ? ` (${ev.motivo})` : ''}
                     </div>
                   </div>
@@ -607,6 +631,7 @@ export default function OsDetalhe() {
       {ehEquipe && aba === 'atendimento' && !registrando && !transicao && <footer className="os-action-footer">
         <details className="more-actions"><summary>Mais ações</summary><div className="more-actions-menu">
           {['ADMIN', 'TECNICO'].includes(perfil) && !encerrada && os.status !== 'FINALIZADO' && <button type="button" className="btn-secondary" onClick={() => escolherAba('prazo')}>Alterar prazo</button>}
+          {['ADMIN', 'TECNICO'].includes(perfil) && !encerrada && <button type="button" className="btn-secondary" onClick={() => { setPatrimonioNovo(os.patrimonioInformado || ''); setErroPatrimonio(''); setEditandoPatrimonio(true) }}>Editar patrimônio</button>}
           {transicoes.filter(t => !['FINALIZADO', 'ENTREGUE'].includes(t.para) && !(t.para === 'EM_ANALISE' && os.status !== 'FINALIZADO')).map(t => <button type="button" className="btn-secondary" key={t.rotulo} onClick={() => abrirTransicao(t)}>{t.rotulo}</button>)}
           {perfil === 'ADMIN' && <>
             <button type="button" className="btn-secondary" style={{ color: 'var(--red)' }} disabled={excluindo} onClick={excluirChamado}>{excluindo ? 'Excluindo...' : 'Excluir chamado'}</button>
@@ -618,6 +643,13 @@ export default function OsDetalhe() {
           {transicoes.filter(t => ['FINALIZADO', 'ENTREGUE'].includes(t.para) || (t.para === 'EM_ANALISE' && os.status !== 'FINALIZADO')).map(t => <button key={t.rotulo} type="button" className="btn-primary" onClick={() => abrirTransicao(t)}>{t.rotulo}</button>)}
         </div>
       </footer>}
+      {editandoPatrimonio && <div className="modal-backdrop" role="presentation"><form className="card form-stack patrimonio-dialog" role="dialog" aria-modal="true" aria-labelledby="titulo-patrimonio" onSubmit={salvarPatrimonio}>
+        <h2 id="titulo-patrimonio">Corrigir patrimônio informado</h2>
+        <p className="muted">A correção ficará registrada no histórico da OS.</p>
+        <div className="field"><label htmlFor="patrimonio-os">Patrimônio ou número de série</label><input id="patrimonio-os" maxLength={40} required value={patrimonioNovo} onChange={e => setPatrimonioNovo(e.target.value)} /></div>
+        {erroPatrimonio && <p role="alert" className="erro">{erroPatrimonio}</p>}
+        <div className="actions"><button className="btn-primary" disabled={salvandoPatrimonio}>{salvandoPatrimonio ? 'Salvando…' : 'Salvar correção'}</button><button className="btn-secondary" type="button" disabled={salvandoPatrimonio} onClick={() => setEditandoPatrimonio(false)}>Cancelar</button></div>
+      </form></div>}
       {perfil === 'SOLICITANTE' && <footer className="os-action-footer">
         <div className="actions">
           <button type="button" className="btn-secondary" style={{ color: 'var(--red)' }} disabled={excluindo} onClick={excluirChamado}>

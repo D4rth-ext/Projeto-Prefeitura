@@ -51,7 +51,7 @@ export default function Historico() {
     <p className="muted">Consulte as alterações registradas nos chamados.</p>
     {selecionada ? <Eventos key={selecionada.id} os={selecionada} voltar={() => setSelecionada(null)} /> : <>
       <form className="ticket-tools" onSubmit={e => { e.preventDefault(); setConsulta({ id: numero || undefined, pagina: 0 }) }}>
-        <input type="number" min="1" step="1" aria-label="Número da OS" placeholder="Buscar pelo número da OS" value={numero} onChange={e => setNumero(e.target.value)} />
+        <input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="Número da OS" placeholder="Buscar pelo número da OS" value={numero} onChange={e => setNumero(e.target.value.replace(/\D/g, ''))} />
         <button className="btn-primary" type="submit">Buscar</button>
         {consulta.id && <button className="btn-secondary" type="button" onClick={() => { setNumero(''); setConsulta({ id: undefined, pagina: 0 }) }}>Limpar busca</button>}
       </form>

@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import { listarEquipe, listarOrdens, listarTecnicosDaOs } from '../api/ordensServico'
 import { listarAgendamentos, criarAgendamento, atualizarAgendamento, alterarStatusAgendamento } from '../api/agenda'
 import { mensagemDeErro } from '../api/erro'
-import { formatarDataHora } from '../utils/osLabels'
 
 const vazio = { titulo: '', descricao: '', local: '', tecnicoId: '', osId: '', inicio: '', fim: '' }
 const localData = iso => {
@@ -12,6 +11,7 @@ const localData = iso => {
   const data = new Date(iso)
   return new Date(data.getTime() - data.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
+const formatarHora = iso => iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'
 export default function Agenda() {
   const { usuario } = useAuth()
   const gestao = ['ADMIN', 'ATENDENTE'].includes(usuario?.perfil)
@@ -20,6 +20,8 @@ export default function Agenda() {
   const [ordens, setOrdens] = useState([])
   const [vinculados, setVinculados] = useState([])
   const [filtro, setFiltro] = useState({ tecnicoId: '', status: '', inicio: '', fim: '' })
+  const [buscaTecnico, setBuscaTecnico] = useState('')
+  const [buscaNaAgenda, setBuscaNaAgenda] = useState('')
   const [form, setForm] = useState(vazio)
   const [editando, setEditando] = useState(null)
   const [aberto, setAberto] = useState(false)
@@ -67,11 +69,14 @@ export default function Agenda() {
   }
   const campo = (k, v) => setForm(f => ({ ...f, [k]: v, ...(k === 'osId' ? { tecnicoId: '' } : {}) }))
   const tecnicos = form.osId ? equipe.filter(t => vinculados.includes(t.id)) : equipe
+  const tecnicosVisiveis = tecnicos.filter(t => t.nome.toLocaleLowerCase('pt-BR').includes(buscaTecnico.trim().toLocaleLowerCase('pt-BR')))
+  const itensVisiveis = itens.filter(item => !buscaNaAgenda.trim() || item.tecnicoNome?.toLocaleLowerCase('pt-BR').includes(buscaNaAgenda.trim().toLocaleLowerCase('pt-BR')))
   return <div className="content">
     <div className="page-heading"><h1>Agenda técnica</h1>{gestao && <button className="btn-primary" onClick={() => { setForm(vazio); setEditando(null); setAberto(true) }}>Novo compromisso</button>}</div>
     <p>{gestao ? 'Visitas, acessos remotos e serviços externos da equipe.' : 'Seus compromissos de atendimento.'} Sem filtro de período, são exibidos os compromissos do mês atual.</p>
     <form className="card filter-grid" onSubmit={e => { e.preventDefault(); carregar() }}>
       {gestao && <div className="field"><label>Técnico</label><select value={filtro.tecnicoId} onChange={e => setFiltro(f => ({ ...f, tecnicoId: e.target.value }))}><option value="">Todos</option>{equipe.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</select></div>}
+      {gestao && <div className="field"><label htmlFor="agenda-busca-tecnico">Pesquisar técnico na agenda</label><input id="agenda-busca-tecnico" type="search" value={buscaNaAgenda} onChange={e => setBuscaNaAgenda(e.target.value)} placeholder="Digite o nome do técnico" /></div>}
       <div className="field"><label>Situação</label><select value={filtro.status} onChange={e => setFiltro(f => ({ ...f, status: e.target.value }))}><option value="">Todas</option><option value="AGENDADO">Agendado</option><option value="CONCLUIDO">Concluído</option><option value="CANCELADO">Cancelado</option></select></div>
       {['inicio', 'fim'].map(k => <div className="field" key={k}><label>{k === 'inicio' ? 'De' : 'Até'}</label><input type="date" value={filtro[k]} onChange={e => setFiltro(f => ({ ...f, [k]: e.target.value }))} /></div>)}
       <button className="btn-primary" disabled={carregando || ocupado}>Filtrar</button>
@@ -81,17 +86,19 @@ export default function Agenda() {
       <h2>{editando ? 'Editar compromisso' : 'Novo compromisso'}</h2>
       <div className="field"><label>Título</label><input required maxLength={160} value={form.titulo} onChange={e => campo('titulo', e.target.value)} /></div>
       <div className="field"><label>OS vinculada (opcional)</label><select value={form.osId} onChange={e => campo('osId', e.target.value)}><option value="">Sem OS</option>{ordens.map(o => <option key={o.id} value={o.id}>#{o.id} · {o.setorNome}</option>)}</select></div>
-      <div className="field"><label>Técnico responsável</label><select required value={form.tecnicoId} onChange={e => campo('tecnicoId', e.target.value)}><option value="">Selecione</option>{tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</select></div>
-      {form.osId && !tecnicos.length && <p>Vincule um técnico à OS pela triagem antes de agendar.</p>}
+      <div className="field"><label>Pesquisar técnico</label><input type="search" value={buscaTecnico} onChange={e => setBuscaTecnico(e.target.value)} placeholder="Digite o nome do técnico" /></div>
+      <div className="field"><label>Técnico responsável</label><select required value={form.tecnicoId} onChange={e => campo('tecnicoId', e.target.value)}><option value="">Selecione</option>{tecnicosVisiveis.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</select></div>
+      {form.osId && !tecnicos.length && <p className="erro" role="alert">Vincule um técnico à OS pela triagem antes de agendar.</p>}
+      {form.osId && tecnicos.length > 0 && tecnicosVisiveis.length === 0 && <p>Nenhum técnico corresponde à pesquisa.</p>}
       {erroVinculo && <p className="erro" role="alert">{erroVinculo}</p>}
       <div className="filter-grid">{['inicio', 'fim'].map(k => <div key={k} className="field"><label>{k === 'inicio' ? 'Início' : 'Fim'} (horário local)</label><input required type="datetime-local" value={form[k]} onChange={e => campo(k, e.target.value)} /></div>)}</div>
       <div className="field"><label>Local / modalidade de atendimento</label><input maxLength={255} value={form.local} onChange={e => campo('local', e.target.value)} /></div>
       <div className="field"><label>Descrição</label><textarea value={form.descricao} onChange={e => campo('descricao', e.target.value)} /></div>
       <div className="actions"><button className="btn-primary" disabled={ocupado}>Salvar compromisso</button><button type="button" className="btn-secondary" disabled={ocupado} onClick={() => setAberto(false)}>Cancelar edição</button></div>
     </form>}
-    {carregando ? <p>Carregando agenda...</p> : !itens.length ? <p>Nenhum compromisso no período.</p> : <div className="agenda-list">{itens.map(item => <article className="card" key={item.id}>
+    {carregando ? <p>Carregando agenda...</p> : !itensVisiveis.length ? <p>{itens.length ? 'Nenhum compromisso encontrado para esse técnico.' : 'Nenhum compromisso no período.'}</p> : <div className="agenda-list">{itensVisiveis.map(item => <article className="card" key={item.id}>
       <div className="page-heading"><h2>{item.titulo}</h2><span className="badge badge-analise">{{ AGENDADO: 'Agendado', CONCLUIDO: 'Concluído', CANCELADO: 'Cancelado' }[item.status]}</span></div>
-      <p>{formatarDataHora(item.inicio)} até {formatarDataHora(item.fim)}<br />{item.tecnicoNome} · {item.local || 'Local não informado'}{item.setorNome && ` · ${item.setorNome}`}</p>
+      <p>{formatarHora(item.inicio)} até {formatarHora(item.fim)}<br />{item.tecnicoNome} · {item.local || 'Local não informado'}{item.setorNome && ` · ${item.setorNome}`}</p>
       {item.descricao && <p style={{ whiteSpace: 'pre-wrap' }}>{item.descricao}</p>}
       {item.osId && <Link to={`/ordens-servico/${item.osId}`}>Abrir OS #{item.osId}</Link>}
       {gestao && item.status === 'AGENDADO' && <div className="actions">

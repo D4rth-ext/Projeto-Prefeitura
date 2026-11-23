@@ -186,6 +186,11 @@ public class OrdemServico {
         registrarAlteracao();
     }
 
+    public void atualizarPatrimonioInformado(String patrimonio) {
+        this.patrimonioInformado = normalizar(patrimonio);
+        registrarAlteracao();
+    }
+
     public void alterarStatus(StatusOs novoStatus) {
         this.status = novoStatus;
         registrarAlteracao();

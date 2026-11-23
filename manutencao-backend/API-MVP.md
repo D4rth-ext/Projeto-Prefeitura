@@ -85,11 +85,12 @@ O backend limita as tentativas de login a 30 e os envios de autocadastro a 5 por
 Categorias `NAO_LIGA`, `LENTO`, `SEM_REDE`, `IMPRESSORA`, `SISTEMA`, `EMAIL` e `OUTRO`. Admin e Atendente incluem `solicitanteId`. Para o Solicitante, a API usa a conta autenticada. `contato` é obrigatório; `patrimonioInformado`, `computadorLiga`, `temRede`, `consegueAnyDesk` e `melhorHorario` são opcionais. Respostas rápidas aceitam `SIM`, `NAO` e `NAO_SEI`. O atendimento remoto registra a modalidade, sem coletar dados de acesso remoto.
 
 - `PATCH /os/{id}/solicitacao` permite ao Solicitante dono da OS, Admin ou Atendente editar a solicitação enquanto ela está `RECEBIDO` e ainda não foi triada. Envie os campos de abertura e a `versao` atual.
+- `PATCH /os/{id}/patrimonio` permite ao Admin ou Técnico vinculado corrigir `patrimonioInformado` durante o atendimento. Envie o valor e a `versao` atual; a correção fica registrada no histórico.
 
 - `GET /os/{id}` para detalhes. O Solicitante só vê suas OSs e o Técnico só vê as que têm vínculo ativo com ele. Na visão do Solicitante, campos de controle interno como `prioridade`, `motivoBancada`, `equipamentoId`, `acessorios` e `retiradoPor` vêm nulos ou ausentes.
 - `GET /os/busca` para lista paginada. Filtros combináveis `id`, `setorId`, `status`, `modalidade`, `atrasadas`, `encerrada`, `inicio`, `fim`, `pagina` (base zero) e `tamanho` (1–100). A equipe também pode usar `equipamentoId`, `patrimonio`, `numeroSerie`, `tecnicoId` e `backupEmAberto`. A resposta contém `conteudo`, `pagina`, `tamanho`, `totalElementos` e `totalPaginas`.
 - Para o painel de atraso, use `GET /os/busca?atrasadas=true&tamanho=1` e leia `totalElementos`. Cada OS tem também o campo `atrasada`.
-- `GET /os/{id}/historico-status` traz `anterior`, `status` e `criadoEm` em ordem cronológica. Começa na abertura com `status: "RECEBIDO"` e `anterior: null`. Respeita o mesmo acesso do detalhe da OS.
+- `GET /os/{id}/historico-status` traz `anterior`, `status`, `criadoEm` e `autorNome` em ordem cronológica. Começa na abertura com `status: "RECEBIDO"` e `anterior: null`. Respeita o mesmo acesso do detalhe da OS.
 - `GET /os/{id}/registros` para a linha do tempo. O Solicitante recebe orientações da equipe (`ORIENTACAO`) e as próprias observações (`OBSERVACAO_SOLICITANTE`). A equipe autorizada também pode consultar `/os/{id}/eventos`, `/os/{id}/tecnicos/historico` e `/os/{id}/tecnicos`. A última rota retorna os IDs dos vínculos ativos.
 
 ### Adicionar observação como solicitante

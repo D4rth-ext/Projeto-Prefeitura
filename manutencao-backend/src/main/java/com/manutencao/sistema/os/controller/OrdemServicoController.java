@@ -3,6 +3,7 @@ package com.manutencao.sistema.os.controller;
 import com.manutencao.sistema.os.dto.AberturaOsRequest;
 import com.manutencao.sistema.os.dto.EdicaoSolicitacaoRequest;
 import com.manutencao.sistema.os.dto.OrdemServicoResponse;
+import com.manutencao.sistema.os.dto.PatrimonioOsRequest;
 import com.manutencao.sistema.os.dto.TriagemOsRequest;
 import com.manutencao.sistema.os.service.OrdemServicoService;
 import com.manutencao.sistema.os.service.TriagemOsService;
@@ -59,6 +60,12 @@ public class OrdemServicoController {
     public OrdemServicoResponse editarSolicitacao(@PathVariable Long id,
             @Valid @RequestBody EdicaoSolicitacaoRequest request, Principal principal) {
         return service.editarSolicitacao(id, request, principal.getName());
+    }
+
+    @PatchMapping("/{id}/patrimonio")
+    public OrdemServicoResponse atualizarPatrimonio(@PathVariable Long id,
+            @Valid @RequestBody PatrimonioOsRequest request, Principal principal) {
+        return service.atualizarPatrimonio(id, request, principal.getName());
     }
 
     @GetMapping("/{id}")

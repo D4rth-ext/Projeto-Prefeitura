@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { buscarEquipamentos, criarEquipamento, buscarTiposEquipamento, excluirEquipamento } from '../api/equipamentos'
+import { buscarEquipamentos, criarEquipamento, atualizarEquipamento, buscarTiposEquipamento, excluirEquipamento } from '../api/equipamentos'
 import { buscarSetores } from '../api/setores'
 import { mensagemDeErro } from '../api/erro'
 import { useAuth } from '../context/AuthContext'
@@ -29,6 +29,7 @@ export default function Equipamentos() {
 
   const [form, setForm] = useState(VAZIO)
   const [mostrarForm, setMostrarForm] = useState(false)
+  const [editando, setEditando] = useState(null)
   const [salvando, setSalvando] = useState(false)
   const [erroForm, setErroForm] = useState(null)
 
@@ -84,7 +85,7 @@ export default function Equipamentos() {
 
     setSalvando(true)
     try {
-      await criarEquipamento({
+      const dados = {
         setorId: Number(form.setorId),
         tipoId: Number(form.tipoId),
         marca: form.marca || null,
@@ -92,8 +93,11 @@ export default function Equipamentos() {
         patrimonio: form.patrimonio || null,
         numeroSerie: form.numeroSerie || null,
         observacoes: form.observacoes || null
-      })
+      }
+      if (editando) await atualizarEquipamento(editando.id, dados)
+      else await criarEquipamento(dados)
       setForm(VAZIO)
+      setEditando(null)
       setMostrarForm(false)
       carregar({ busca })
     } catch (err) {
@@ -117,7 +121,7 @@ export default function Equipamentos() {
           Equipamentos
         </h1>
         {podeEditar && (
-          <button className="btn-primary" onClick={() => setMostrarForm((v) => !v)}>
+          <button className="btn-primary" onClick={() => { setMostrarForm(v => !v); setEditando(null); setForm(VAZIO); setErroForm(null) }}>
             <i className="ti ti-plus" />
             Novo equipamento
           </button>
@@ -141,7 +145,7 @@ export default function Equipamentos() {
 
         {mostrarForm && (
           <form onSubmit={handleSalvar} className="card" style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <h2 style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Novo equipamento</h2>
+            <h2 style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{editando ? 'Editar equipamento' : 'Novo equipamento'}</h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div className="field">
@@ -203,7 +207,7 @@ export default function Equipamentos() {
               </button>
               <button
                 type="button"
-                onClick={() => setMostrarForm(false)}
+                onClick={() => { setMostrarForm(false); setEditando(null); setForm(VAZIO) }}
                 style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}
               >
                 Cancelar
@@ -239,11 +243,12 @@ export default function Equipamentos() {
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>{eq.setor?.nome}</td>
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)' }}>{eq.totalConsertos}</td>
                     <td style={{ padding: '13px 14px', borderBottom: '1px solid var(--border)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {podeEditar && (
+                {podeEditar && <>
+                        <button onClick={() => { setEditando(eq); setForm({ setorId: String(eq.setor?.id || ''), tipoId: String(eq.tipo?.id || ''), marca: eq.marca || '', modelo: eq.modelo || '', patrimonio: eq.patrimonio || '', numeroSerie: eq.numeroSerie || '', observacoes: eq.observacoes || '' }); setErroForm(null); setMostrarForm(true) }} title="Editar equipamento" className="btn-secondary">Editar</button>
                         <button onClick={() => handleExcluir(eq)} title="Excluir" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 12, color: 'var(--red)' }}>
                           <i className="ti ti-trash" /> Excluir
                         </button>
-                      )}
+                      </>}
                     </td>
                   </tr>
                 ))}

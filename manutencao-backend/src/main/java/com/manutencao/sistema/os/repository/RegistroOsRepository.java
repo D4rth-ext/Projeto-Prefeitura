@@ -90,13 +90,15 @@ public class RegistroOsRepository {
 
     public List<HistoricoStatusResponse> historicoStatus(Long osId) {
         return jdbc.query("""
-                select valor_anterior, valor_novo, criado_em
-                from os_evento where os_id = ? and tipo = 'STATUS'
-                order by criado_em, id
+                select evento.valor_anterior, evento.valor_novo, evento.criado_em, autor.nome as autor_nome
+                from os_evento evento join usuario autor on autor.id = evento.autor_id
+                where evento.os_id = ? and evento.tipo = 'STATUS'
+                order by evento.criado_em, evento.id
                 """, (rs, linha) -> {
             String anterior = rs.getString("valor_anterior");
             return new HistoricoStatusResponse(anterior == null ? null : StatusOs.valueOf(anterior),
-                    StatusOs.valueOf(rs.getString("valor_novo")), instante(rs.getTimestamp("criado_em")));
+                    StatusOs.valueOf(rs.getString("valor_novo")), instante(rs.getTimestamp("criado_em")),
+                    rs.getString("autor_nome"));
         }, osId);
     }
 

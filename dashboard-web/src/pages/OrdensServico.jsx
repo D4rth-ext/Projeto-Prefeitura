@@ -86,7 +86,7 @@ export default function OrdensServico() {
         </div>
         <details className="advanced-filters no-print"><summary>Filtros avançados</summary>
         <form className="card filter-grid" onSubmit={e => { e.preventDefault(); setPagina(0); setConsulta(Object.fromEntries(Object.entries(filtros).filter(([, v]) => v !== ''))) }}>
-          <div className="field"><label>Nº da OS</label><input type="number" min="1" value={filtros.id} onChange={e => setFiltros(f => ({ ...f, id: e.target.value }))} /></div>
+          <div className="field"><label>Nº da OS</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={filtros.id} onChange={e => setFiltros(f => ({ ...f, id: e.target.value.replace(/\D/g, '') }))} /></div>
           {!ehSolicitante && <div className="field"><label>Setor</label><select value={filtros.setorId} onChange={e => setFiltros(f => ({ ...f, setorId: e.target.value }))}><option value="">Todos</option>{setores.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}</select></div>}
           <div className="field"><label>Patrimônio</label><input value={filtros.patrimonio} onChange={e => setFiltros(f => ({ ...f, patrimonio: e.target.value }))} /></div>
           <div className="field"><label>Número de série</label><input value={filtros.numeroSerie} onChange={e => setFiltros(f => ({ ...f, numeroSerie: e.target.value }))} /></div>

@@ -8,6 +8,7 @@ import com.manutencao.sistema.os.domain.StatusOs;
 import com.manutencao.sistema.os.dto.AberturaOsRequest;
 import com.manutencao.sistema.os.dto.EdicaoSolicitacaoRequest;
 import com.manutencao.sistema.os.dto.OrdemServicoResponse;
+import com.manutencao.sistema.os.dto.PatrimonioOsRequest;
 import com.manutencao.sistema.os.repository.BackupOsRepository;
 import com.manutencao.sistema.os.repository.OrdemServicoRepository;
 import com.manutencao.sistema.os.repository.TriagemOsRepository;
@@ -142,6 +143,23 @@ public class OrdemServicoService {
         Usuario usuario = acesso.usuario(email, "Usuário autenticado não encontrado.");
         OrdemServico os = acesso.consultar(id, usuario);
         return OrdemServicoResponse.de(os, usuario.getPerfil() == Perfil.SOLICITANTE);
+    }
+
+    @Transactional
+    public OrdemServicoResponse atualizarPatrimonio(Long id, PatrimonioOsRequest request, String email) {
+        Usuario autor = acesso.usuario(email);
+        OrdemServico os = acesso.consultar(id, autor);
+        acesso.exigirTecnicoOuAdmin(os, autor);
+        if (os.getStatus().terminal()) {
+            throw new RegraNegocioException("Não é possível alterar o patrimônio de uma OS encerrada.");
+        }
+        acesso.conferirVersao(os, request.versao());
+        String anterior = os.getPatrimonioInformado();
+        os.atualizarPatrimonioInformado(request.patrimonioInformado());
+        osRepository.saveAndFlush(os);
+        triagemRepository.registrarEvento(id, "PATRIMONIO", autor.getId(), anterior,
+                os.getPatrimonioInformado(), "Patrimônio informado corrigido pela equipe técnica.");
+        return OrdemServicoResponse.de(os);
     }
 
     @Transactional

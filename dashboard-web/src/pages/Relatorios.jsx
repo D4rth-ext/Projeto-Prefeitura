@@ -41,11 +41,11 @@ export default function Relatorios() {
       </form>
       {erro && <p role="alert" className="erro">{erro}</p>}
       {dados && <>
-        <div className="ticket-stats">
-          {[['Total de OS', dados.total], ['Atrasadas', dados.atrasadas], ['Período inicial', dataPt(dados.inicio)], ['Período final', dataPt(dados.fim)]].map(([label, valor]) => <div className="card" key={label}><span className="ticket-stat-label">{label}</span><p className="ticket-stat-value">{valor}</p></div>)}
-        </div>
+        {(() => { const canceladas = dados.porStatus?.CANCELADO || 0; const taxa = dados.total ? Math.round(canceladas / dados.total * 100) : 0; return <div className="ticket-stats">
+          {[['Total de OS', dados.total], ['Atrasadas', dados.atrasadas], ['Canceladas', canceladas], ['Percentual cancelado', `${taxa}%`], ['Período inicial', dataPt(dados.inicio)], ['Período final', dataPt(dados.fim)]].map(([label, valor]) => <div className="card" key={label}><span className="ticket-stat-label">{label}</span><p className="ticket-stat-value">{valor}</p></div>)}
+        </div> })()}
         <div className="filter-grid" style={{ alignItems: 'start' }}>
-          <section className="card"><h2>Por status</h2>{Object.entries(dados.porStatus || {}).map(([status, total]) => <p key={status}>{STATUS[status] || status}: <strong>{total}</strong></p>)}</section>
+          <section className="card"><h2>Ordens por status</h2><table className="report-table"><thead><tr><th>Status</th><th>Quantidade</th><th>Percentual</th></tr></thead><tbody>{Object.entries(dados.porStatus || {}).map(([status, total]) => <tr key={status}><td>{STATUS[status] || status}</td><td>{total}</td><td>{dados.total ? `${Math.round(total / dados.total * 100)}%` : '0%'}</td></tr>)}</tbody></table><p className="muted">Canceladas são exibidas em separado para facilitar a revisão do período.</p></section>
           <section className="card"><h2>Por modalidade</h2>{Object.entries(dados.porModalidade || {}).map(([modalidade, total]) => <p key={modalidade}>{rotulo(MODALIDADES, modalidade)}: <strong>{total}</strong></p>)}</section>
           <section className="card"><h2>Por setor</h2>{dados.porSetor?.length ? dados.porSetor.map(s => <p key={s.setorId}>{s.setorNome}: <strong>{s.total}</strong></p>) : <p className="muted">Sem OS no período.</p>}</section>
         </div>

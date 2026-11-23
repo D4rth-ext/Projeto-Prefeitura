@@ -27,6 +27,26 @@
   --cancel-text: #8b332d;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --green-dark: #a5d78c;
+  --green: #73b94e;
+  --green-light: #263923;
+  --green-pale: #1c2a1c;
+  --border: #39483d;
+  --text-primary: #e6eee8;
+  --text-secondary: #a8b7ac;
+  --surface: #202923;
+  --page-bg: #151c18;
+  --red: #ff9186;
+  --pend-bg: #47391f; --pend-text: #f4d695;
+  --analise-bg: #24384c; --analise-text: #a9c8e8;
+  --peca-bg: #482b29; --peca-text: #f3aaa2;
+  --final-bg: #283d29; --final-text: #b8dfa9;
+  --entregue-bg: #303a33; --entregue-text: #c1cdc4;
+  --cancel-bg: #482b29; --cancel-text: #f3aaa2;
+}
+
 * { box-sizing: border-box; }
 
 html { min-width: 320px; }
@@ -134,6 +154,10 @@ a { color: inherit; }
 
 .field { min-width: 0; }
 .field label { display: block; font-size: 12px; font-weight: 600; color: #44544a; margin-bottom: 6px; }
+:root[data-theme="dark"] .field label { color: var(--text-primary); }
+.field:has(:required) > label::after { content: ' *'; color: var(--red); font-weight: 700; }
+.erro, [role="alert"].erro { display: block; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--red) 55%, transparent); border-left: 5px solid var(--red); border-radius: 8px; background: color-mix(in srgb, var(--red) 12%, var(--surface)); color: var(--red); font-weight: 650; }
+[role="alert"]:not(.erro) { padding: 10px 12px; border-left: 4px solid var(--red); border-radius: 6px; background: color-mix(in srgb, var(--red) 10%, var(--surface)); font-weight: 600; }
 .field input, .field select {
   width: 100%;
   min-height: 42px;
@@ -427,4 +451,29 @@ h2 { font-size: 16px; line-height: 1.35; letter-spacing: -.01em; font-weight: 70
     box-shadow: none !important;
     break-inside: avoid;
   }
+  body { background: #fff !important; font-size: 11pt !important; }
+  .ticket-heading { padding: 0 0 12px !important; border-bottom: 2px solid #333 !important; }
+  .ticket-stats { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
+  .ticket-stats .card, .content .card { border: 1px solid #aaa !important; padding: 10px !important; }
+  h1, h2, h3 { break-after: avoid; }
+  table { border-collapse: collapse !important; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  a { color: #111 !important; text-decoration: none !important; }
+  @page { size: A4 landscape; margin: 14mm; }
 }
+
+:root[data-theme="dark"] .app-shell > aside.sidebar { background: #1b241e; }
+:root[data-theme="dark"] .app-shell > aside.sidebar nav a:hover { background: #29382c !important; }
+:root[data-theme="dark"] .field input:disabled, :root[data-theme="dark"] .field select:disabled { background: #303a33; }
+:root[data-theme="dark"] .ticket-table thead tr { background: #263329 !important; }
+:root[data-theme="dark"] .field input, :root[data-theme="dark"] .field select, :root[data-theme="dark"] .field textarea,
+:root[data-theme="dark"] .ticket-tools :is(input, select), :root[data-theme="dark"] input, :root[data-theme="dark"] select, :root[data-theme="dark"] textarea {
+  background-color: var(--surface); color: var(--text-primary); border-color: var(--border);
+}
+:root[data-theme="dark"] .os-description { color: var(--text-primary); }
+.theme-toggle { justify-self: stretch !important; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; background: rgb(0 0 0 / 55%); }
+.patrimonio-dialog { width: min(100%, 480px); }
+.report-table { width: 100%; border-collapse: collapse; }
+.report-table th, .report-table td { padding: 8px; border-bottom: 1px solid var(--border); text-align: left; }

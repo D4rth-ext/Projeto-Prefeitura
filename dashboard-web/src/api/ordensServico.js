@@ -87,3 +87,7 @@ export function listarEquipe() {
 export function editarChamado(id, dados) {
   return api.patch(`/os/${id}/solicitacao`, dados).then((r) => r.data)
 }
+
+export function atualizarPatrimonioOs(id, dados) {
+  return api.patch(`/os/${id}/patrimonio`, dados).then((r) => r.data)
+}

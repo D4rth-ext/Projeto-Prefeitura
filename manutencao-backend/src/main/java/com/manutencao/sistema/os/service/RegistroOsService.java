@@ -52,6 +52,9 @@ public class RegistroOsService {
 
         if (request.tipo() == TipoRegistroOs.DIAGNOSTICO || request.tipo() == TipoRegistroOs.ACAO) {
             acesso.exigirTecnicoOuAdmin(os, autor);
+            if (os.getStatus() != StatusOs.EM_ANALISE) {
+                throw new RegraNegocioException("Inicie a análise do chamado antes de registrar diagnóstico ou ação.");
+            }
         }
 
         if (os.getStatus().terminal()) {
@@ -77,7 +80,7 @@ public class RegistroOsService {
     public List<HistoricoStatusResponse> historicoStatus(Long id, String email) {
         OrdemServico os = acesso.consultar(id, acesso.usuario(email));
         var historico = new ArrayList<HistoricoStatusResponse>();
-        historico.add(new HistoricoStatusResponse(null, StatusOs.RECEBIDO, os.getAbertaEm()));
+        historico.add(new HistoricoStatusResponse(null, StatusOs.RECEBIDO, os.getAbertaEm(), os.getSolicitante().getNome()));
         historico.addAll(registroRepository.historicoStatus(id));
         return historico;
     }

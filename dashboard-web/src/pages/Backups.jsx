@@ -25,7 +25,7 @@ export default function Backups() {
       <div className="agenda-list">{itens.map(b => <article className="card" key={b.osId}>
         <h2>OS #{b.osId} {b.descarteAtrasado && <span className="badge badge-cancelado">Descarte atrasado</span>}</h2>
         <p>Mídia do TI: {b.midiaTi}<br />Limite de descarte: {formatarDataHora(b.limiteDescarteEm)}</p>
-        <Link to={`/ordens-servico/${b.osId}`}>Abrir OS para registrar descarte</Link>
+        <Link to={`/ordens-servico/${b.osId}?aba=backup`}>Abrir protocolo de backup da OS</Link>
       </article>)}</div>
     </>}
   </div>

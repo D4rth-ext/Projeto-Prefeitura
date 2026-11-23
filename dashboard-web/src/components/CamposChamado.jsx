@@ -30,7 +30,7 @@ export default function CamposChamado({ form, campo }) {
 
       <div className="field">
         <label>Telefone para contato</label>
-        <input type="tel" maxLength={60} value={form.contato} onChange={(e) => campo('contato', e.target.value)} required />
+        <input type="tel" inputMode="numeric" maxLength={20} value={form.contato} onChange={(e) => campo('contato', e.target.value.replace(/\D/g, ''))} required />
       </div>
 
       <div className="field">

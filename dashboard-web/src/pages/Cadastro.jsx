@@ -90,7 +90,7 @@ export default function Cadastro() {
 
         <div className="field" style={{ marginBottom: 14 }}>
           <label>Telefone</label>
-          <input type="tel" value={form.telefone} onChange={(e) => campo('telefone', e.target.value)} required />
+            <input type="tel" inputMode="numeric" value={form.telefone} onChange={(e) => campo('telefone', e.target.value.replace(/\D/g, ''))} required />
         </div>
 
         <div className="field" style={{ marginBottom: 14 }}>
