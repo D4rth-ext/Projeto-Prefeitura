@@ -45,6 +45,21 @@ export default function CamposChamado({ form, campo }) {
         />
       </div>
 
+      <div className="field">
+        <label>Você deseja solicitar backup dos seus dados?</label>
+        <select value={form.backupSolicitado || ''} onChange={e => campo('backupSolicitado', e.target.value)} required>
+          <option value="">Selecione uma opção</option>
+          <option value="SIM">Sim, quero solicitar backup</option>
+          <option value="NAO">Não quero solicitar backup</option>
+        </select>
+      </div>
+      {form.backupSolicitado === 'SIM' && <div className="field">
+        <label>O que você precisa incluir no backup?</label>
+        <textarea rows={3} maxLength={2000} placeholder="Ex.: documentos da pasta Meus Documentos e arquivos de trabalho" value={form.escopoBackup || ''} onChange={e => campo('escopoBackup', e.target.value)} required />
+        <small className="muted">Descreva as pastas ou os tipos de arquivo que precisam ser preservados.</small>
+      </div>}
+      {form.backupSolicitado === 'NAO' && <p className="muted">A equipe não fará cópia dos dados quando o equipamento for recebido para atendimento em bancada.</p>}
+
       <details className="optional-fields"><summary>Adicionar informações para ajudar o atendimento <span className="muted">· opcional</span></summary><div className="form-stack">
       <div className="field">
         <label>Patrimônio do equipamento (opcional)</label>

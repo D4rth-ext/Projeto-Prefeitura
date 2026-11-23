@@ -58,8 +58,10 @@ public class OrdemServicoService {
             throw new RegraNegocioException("O chamado só pode ser editado antes da triagem.");
         }
         acesso.conferirVersao(os, request.versao());
+        validarPreferenciaBackup(request.backupSolicitado(), request.escopoBackup());
         os.editarSolicitacao(request.categoria(), request.descricaoProblema(), request.patrimonioInformado(),
-                request.computadorLiga(), request.temRede(), request.consegueAnyDesk(), request.contato(), request.melhorHorario());
+                request.computadorLiga(), request.temRede(), request.consegueAnyDesk(), request.contato(),
+                request.melhorHorario(), request.backupSolicitado(), request.escopoBackup());
         return OrdemServicoResponse.de(osRepository.saveAndFlush(os));
     }
 
@@ -84,6 +86,7 @@ public class OrdemServicoService {
         if (!setor.isAtivo()) {
             throw new RegraNegocioException("Não é possível abrir OS para um setor inativo.");
         }
+        validarPreferenciaBackup(request.backupSolicitado(), request.escopoBackup());
 
         OrdemServico os = new OrdemServico(
                 setor,
@@ -95,7 +98,8 @@ public class OrdemServicoService {
 
         os.preencherAbertura(
                 request.patrimonioInformado(), request.computadorLiga(), request.temRede(),
-                request.consegueAnyDesk(), request.contato(), request.melhorHorario()
+                request.consegueAnyDesk(), request.contato(), request.melhorHorario(),
+                request.backupSolicitado(), request.escopoBackup()
         );
 
         return OrdemServicoResponse.de(osRepository.save(os), autor.getPerfil() == Perfil.SOLICITANTE);
@@ -120,8 +124,10 @@ public class OrdemServicoService {
         }
         OrdemServico os = new OrdemServico(setor, solicitante, solicitante,
                 request.categoria(), request.descricaoProblema());
+        validarPreferenciaBackup(request.backupSolicitado(), request.escopoBackup());
         os.preencherAbertura(request.patrimonioInformado(), request.computadorLiga(),
-                request.temRede(), request.consegueAnyDesk(), request.contato(), request.melhorHorario());
+                request.temRede(), request.consegueAnyDesk(), request.contato(), request.melhorHorario(),
+                request.backupSolicitado(), request.escopoBackup());
         return OrdemServicoResponse.de(osRepository.save(os));
     }
 
@@ -223,6 +229,15 @@ public class OrdemServicoService {
         }
 
         return solicitante;
+    }
+
+    private void validarPreferenciaBackup(Boolean solicitado, String escopo) {
+        if (solicitado == null) {
+            throw new RegraNegocioException("Informe se deseja solicitar backup.");
+        }
+        if (solicitado && (escopo == null || escopo.isBlank())) {
+            throw new RegraNegocioException("Descreva quais dados ou pastas devem entrar no backup.");
+        }
     }
 }
 

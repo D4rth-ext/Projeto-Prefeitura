@@ -73,10 +73,12 @@ public class RecebimentoOsService {
             );
         }
 
-        String escopo = normalizar(request.escopoBackup());
+        String escopo = normalizar(os.getBackupSolicitado() == null
+                ? request.escopoBackup() : os.getEscopoBackup());
         String midia = normalizar(request.midiaTi());
         String acessorios = normalizar(request.acessorios());
-        boolean solicitado = request.backupSolicitado();
+        boolean solicitado = os.getBackupSolicitado() == null
+                ? request.backupSolicitado() : os.getBackupSolicitado();
 
         if (solicitado) {
             if (escopo == null || midia == null) {

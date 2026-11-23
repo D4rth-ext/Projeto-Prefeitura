@@ -7,7 +7,8 @@ import CamposChamado from '../components/CamposChamado'
 
 const VAZIO = {
   solicitanteId: '', categoria: '', descricaoProblema: '', patrimonioInformado: '',
-  computadorLiga: '', temRede: '', consegueAnyDesk: '', contato: '', melhorHorario: ''
+  computadorLiga: '', temRede: '', consegueAnyDesk: '', contato: '', melhorHorario: '',
+  backupSolicitado: '', escopoBackup: ''
 }
 
 export default function NovaOS() {
@@ -51,7 +52,8 @@ export default function NovaOS() {
     // Campos vazios não vão no JSON (o backend trata como não informado)
     const corpo = {}
     Object.entries(form).forEach(([chave, valor]) => {
-      if (valor !== '') corpo[chave] = chave === 'solicitanteId' ? Number(valor) : valor
+      if (chave === 'backupSolicitado') corpo[chave] = valor === 'SIM'
+      else if (valor !== '') corpo[chave] = chave === 'solicitanteId' ? Number(valor) : valor
     })
 
     try {

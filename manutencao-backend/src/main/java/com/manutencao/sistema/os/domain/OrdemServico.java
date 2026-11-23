@@ -85,6 +85,12 @@ public class OrdemServico {
     @Column(name = "patrimonio_informado", length = 40)
     private String patrimonioInformado;
 
+    @Column(name = "backup_solicitado")
+    private Boolean backupSolicitado;
+
+    @Column(name = "escopo_backup", length = 2000)
+    private String escopoBackup;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "computador_liga", length = 10)
     private RespostaRapida computadorLiga;
@@ -162,7 +168,7 @@ public class OrdemServico {
     public void preencherAbertura(
             String patrimonioInformado, RespostaRapida computadorLiga,
             RespostaRapida temRede, RespostaRapida consegueAnyDesk,
-            String contato, String melhorHorario
+            String contato, String melhorHorario, Boolean backupSolicitado, String escopoBackup
     ) {
         this.patrimonioInformado = normalizar(patrimonioInformado);
         this.computadorLiga = computadorLiga;
@@ -170,14 +176,18 @@ public class OrdemServico {
         this.consegueAnyDesk = consegueAnyDesk;
         this.contato = normalizar(contato);
         this.melhorHorario = normalizar(melhorHorario);
+        this.backupSolicitado = backupSolicitado;
+        this.escopoBackup = Boolean.TRUE.equals(backupSolicitado) ? normalizar(escopoBackup) : null;
     }
 
     public void editarSolicitacao(CategoriaOs categoria, String descricaoProblema,
             String patrimonioInformado, RespostaRapida computadorLiga, RespostaRapida temRede,
-            RespostaRapida consegueAnyDesk, String contato, String melhorHorario) {
+            RespostaRapida consegueAnyDesk, String contato, String melhorHorario,
+            Boolean backupSolicitado, String escopoBackup) {
         this.categoria = categoria;
         this.descricaoProblema = descricaoProblema.trim();
-        preencherAbertura(patrimonioInformado, computadorLiga, temRede, consegueAnyDesk, contato, melhorHorario);
+        preencherAbertura(patrimonioInformado, computadorLiga, temRede, consegueAnyDesk, contato, melhorHorario,
+                backupSolicitado, escopoBackup);
         registrarAlteracao();
     }
 
@@ -317,6 +327,10 @@ public class OrdemServico {
     public String getPatrimonioInformado() {
         return patrimonioInformado;
     }
+
+    public Boolean getBackupSolicitado() { return backupSolicitado; }
+
+    public String getEscopoBackup() { return escopoBackup; }
 
     public RespostaRapida getComputadorLiga() {
         return computadorLiga;

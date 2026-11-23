@@ -298,7 +298,9 @@ export default function OsDetalhe() {
       temRede: os.temRede || '',
       consegueAnyDesk: os.consegueAnyDesk || '',
       contato: os.contato || '',
-      melhorHorario: os.melhorHorario || ''
+      melhorHorario: os.melhorHorario || '',
+      backupSolicitado: os.backupSolicitado == null ? '' : os.backupSolicitado ? 'SIM' : 'NAO',
+      escopoBackup: os.escopoBackup || ''
     })
     setMsgEdicao(null)
     setEditando(true)
@@ -310,7 +312,7 @@ export default function OsDetalhe() {
     setMsgEdicao(null)
     // Campos opcionais vazios viram null (limpa o valor)
     const corpo = { versao: os.versao }
-    Object.entries(formEdicao).forEach(([k, v]) => { corpo[k] = v === '' ? null : v })
+    Object.entries(formEdicao).forEach(([k, v]) => { corpo[k] = k === 'backupSolicitado' ? v === 'SIM' : v === '' ? null : v })
     try {
       setOs(await editarChamado(id, corpo))
       setEditando(false)
@@ -399,6 +401,8 @@ export default function OsDetalhe() {
               <Linha rotuloCampo="Categoria">{rotulo(CATEGORIAS, os.categoria)}</Linha>
               <Linha rotuloCampo="Setor">{os.setorNome}</Linha>
               <Linha rotuloCampo="Solicitante">{os.solicitanteNome}</Linha>
+              <Linha rotuloCampo="Backup solicitado">{os.backupSolicitado == null ? 'Ainda não informado' : os.backupSolicitado ? 'Sim' : 'Não'}</Linha>
+              {os.backupSolicitado && <Linha rotuloCampo="O que incluir no backup">{os.escopoBackup}</Linha>}
               <Linha rotuloCampo="Aberta por">{os.abertoPorNome}</Linha>
               <Linha rotuloCampo="Aberta em">{formatarDataHora(os.abertaEm)}</Linha>
               <Linha rotuloCampo="Patrimônio informado">{os.patrimonioInformado}</Linha>

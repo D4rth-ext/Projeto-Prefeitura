@@ -16,5 +16,7 @@ public record EdicaoSolicitacaoRequest(
         RespostaRapida consegueAnyDesk,
         @NotBlank(message = "O telefone para contato é obrigatório.") @Size(max = 60) String contato,
         @Size(max = 100) String melhorHorario,
+        @NotNull(message = "Informe se deseja solicitar backup.") Boolean backupSolicitado,
+        @Size(max = 2000, message = "A especificação do backup deve ter até 2000 caracteres.") String escopoBackup,
         @NotNull @PositiveOrZero Long versao
 ) {}

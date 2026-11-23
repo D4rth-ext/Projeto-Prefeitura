@@ -17,6 +17,7 @@ export default function OperacoesOs({ os, perfil, recarregar, aba = 'backup' }) 
   useEffect(() => {
     let ativo = true
     setErro(''); setBackup(null); setRecebimento(null)
+    setForm({ equipamentoId: '', acessorios: '', backupSolicitado: os.backupSolicitado == null ? '' : os.backupSolicitado ? 'SIM' : 'NAO', escopoBackup: os.escopoBackup || '', midiaTi: '', cienciaRiscoConfirmada: false })
     async function carregar() {
       try {
         if (os.modalidade === 'BANCADA') {
@@ -57,13 +58,18 @@ export default function OperacoesOs({ os, perfil, recarregar, aba = 'backup' }) 
           <button className="btn-primary" disabled={ocupado || !confirmado} onClick={() => executar(() => descartarBackup(os.id, { descarteConfirmado: true, versao: os.versao }))}>Registrar descarte</button>
         </div>}
       </>}
-      {gestao && aba === 'recebimento' && !os.recebidoEm && os.status === 'RECEBIDO' && <form className="form-stack" onSubmit={e => { e.preventDefault(); executar(() => receberEquipamento(os.id, { equipamentoId: Number(form.equipamentoId), acessorios: form.acessorios, backupSolicitado: form.backupSolicitado === 'SIM', escopoBackup: form.backupSolicitado === 'SIM' ? form.escopoBackup : null, midiaTi: form.backupSolicitado === 'SIM' ? form.midiaTi : null, cienciaRiscoConfirmada: form.backupSolicitado === 'NAO' && form.cienciaRiscoConfirmada, versao: os.versao })) }}>
+      {gestao && aba === 'recebimento' && !os.recebidoEm && os.status === 'RECEBIDO' && <form className="form-stack" onSubmit={e => { e.preventDefault(); executar(() => receberEquipamento(os.id, { equipamentoId: Number(form.equipamentoId), acessorios: form.acessorios, backupSolicitado: os.backupSolicitado == null ? form.backupSolicitado === 'SIM' : os.backupSolicitado, escopoBackup: os.backupSolicitado == null ? (form.backupSolicitado === 'SIM' ? form.escopoBackup : null) : os.escopoBackup, midiaTi: (os.backupSolicitado == null ? form.backupSolicitado === 'SIM' : os.backupSolicitado) ? form.midiaTi : null, cienciaRiscoConfirmada: !(os.backupSolicitado == null ? form.backupSolicitado === 'SIM' : os.backupSolicitado) && form.cienciaRiscoConfirmada, versao: os.versao })) }}>
         <div className="field"><label>Equipamento do setor</label><select required value={form.equipamentoId} onChange={e => campo('equipamentoId', e.target.value)}><option value="">Selecione</option>{equipamentos.map(e => <option key={e.id} value={e.id}>{e.patrimonio || e.numeroSerie} · {e.marca} {e.modelo}</option>)}</select></div>
         {!equipamentos.length && <p>Cadastre um equipamento ativo deste setor para registrar o recebimento.</p>}
         <div className="field"><label>Acessórios entregues</label><textarea value={form.acessorios} onChange={e => campo('acessorios', e.target.value)} /></div>
-        <div className="field"><label>O solicitante pediu backup?</label><select required value={form.backupSolicitado} onChange={e => campo('backupSolicitado', e.target.value)}><option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option></select></div>
-        {form.backupSolicitado === 'SIM' && <><div className="field"><label>Escopo do backup</label><textarea required value={form.escopoBackup} onChange={e => campo('escopoBackup', e.target.value)} /></div><div className="field"><label>Mídia do TI</label><input required maxLength={80} value={form.midiaTi} onChange={e => campo('midiaTi', e.target.value)} /></div></>}
-        {form.backupSolicitado === 'NAO' && <label className="check"><input type="checkbox" required checked={form.cienciaRiscoConfirmada} onChange={e => campo('cienciaRiscoConfirmada', e.target.checked)} />O solicitante está ciente do risco de perda de dados e optou por não solicitar backup.</label>}
+        {os.backupSolicitado == null
+          ? <div className="field"><label>O solicitante pediu backup?</label><select required value={form.backupSolicitado} onChange={e => campo('backupSolicitado', e.target.value)}><option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option></select></div>
+          : <p><strong>Escolha do solicitante:</strong> {os.backupSolicitado ? 'Solicitou backup' : 'Não solicitou backup'}{os.backupSolicitado && os.escopoBackup ? <><br /><strong>O que incluir:</strong> {os.escopoBackup}</> : ''}</p>}
+        {(os.backupSolicitado === true || (os.backupSolicitado == null && form.backupSolicitado === 'SIM')) && <>
+          {os.backupSolicitado == null && <div className="field"><label>Escopo do backup</label><textarea required value={form.escopoBackup} onChange={e => campo('escopoBackup', e.target.value)} /></div>}
+          <div className="field"><label>Mídia do TI</label><input required maxLength={80} value={form.midiaTi} onChange={e => campo('midiaTi', e.target.value)} /></div>
+        </>}
+        {(os.backupSolicitado === false || (os.backupSolicitado == null && form.backupSolicitado === 'NAO')) && <label className="check"><input type="checkbox" required checked={form.cienciaRiscoConfirmada} onChange={e => campo('cienciaRiscoConfirmada', e.target.checked)} />Confirmo que o solicitante escolheu não fazer backup e está ciente do risco de perda de dados.</label>}
         <button className="btn-primary" disabled={ocupado}>Registrar recebimento</button>
       </form>}
     </section>}

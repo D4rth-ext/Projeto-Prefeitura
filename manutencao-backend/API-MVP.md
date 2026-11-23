@@ -82,7 +82,7 @@ O backend limita as tentativas de login a 30 e os envios de autocadastro a 5 por
 }
 ```
 
-Categorias `NAO_LIGA`, `LENTO`, `SEM_REDE`, `IMPRESSORA`, `SISTEMA`, `EMAIL` e `OUTRO`. Admin e Atendente incluem `solicitanteId`. Para o Solicitante, a API usa a conta autenticada. `contato` é obrigatório; `patrimonioInformado`, `computadorLiga`, `temRede`, `consegueAnyDesk` e `melhorHorario` são opcionais. Respostas rápidas aceitam `SIM`, `NAO` e `NAO_SEI`. O atendimento remoto registra a modalidade, sem coletar dados de acesso remoto.
+Categorias `NAO_LIGA`, `LENTO`, `SEM_REDE`, `IMPRESSORA`, `SISTEMA`, `EMAIL` e `OUTRO`. Admin e Atendente incluem `solicitanteId`. Para o Solicitante, a API usa a conta autenticada. `contato` e `backupSolicitado` são obrigatórios; quando `backupSolicitado` é `true`, `escopoBackup` também é obrigatório (até 2000 caracteres). `patrimonioInformado`, `computadorLiga`, `temRede`, `consegueAnyDesk` e `melhorHorario` são opcionais. Respostas rápidas aceitam `SIM`, `NAO` e `NAO_SEI`. O atendimento remoto registra a modalidade, sem coletar dados de acesso remoto.
 
 - `PATCH /os/{id}/solicitacao` permite ao Solicitante dono da OS, Admin ou Atendente editar a solicitação enquanto ela está `RECEBIDO` e ainda não foi triada. Envie os campos de abertura e a `versao` atual.
 - `PATCH /os/{id}/patrimonio` permite ao Admin ou Técnico vinculado corrigir `patrimonioInformado` durante o atendimento. Envie o valor e a `versao` atual; a correção fica registrada no histórico.
@@ -135,7 +135,7 @@ Todas as operações abaixo recebem a `versao` atual da OS. Use a versão devolv
 | Método e rota | Quem pode usar | Campos além de `versao` |
 | --- | --- | --- |
 | `PATCH /os/{id}/triagem` | Admin e Atendente | `modalidade` (`REMOTO`, `PRESENCIAL` ou `BANCADA`), `prioridade` (`BAIXA`, `MEDIA`, `ALTA` ou `URGENTE`) e pelo menos um ID em `tecnicosIds`. Em bancada, `motivoBancada` e `justificativa`. Ao retirar técnico, `motivoRemocao`. |
-| `POST /os/{id}/recebimento` | Admin e Atendente | `equipamentoId`, `acessorios` e `backupSolicitado`. Se sim, `escopoBackup` e `midiaTi`. Se não, `cienciaRiscoConfirmada: true`. |
+| `POST /os/{id}/recebimento` | Admin e Atendente | `equipamentoId` e `acessorios`. A opção do solicitante em `POST /os` define o backup. Se sim, informe `midiaTi`; se não, envie `cienciaRiscoConfirmada: true`. OS antigas ainda podem receber a resposta durante o recebimento. |
 | `POST /os/{id}/registros` | Admin e Técnico vinculado. Atendente para observação interna e orientação. | `tipo` (`DIAGNOSTICO`, `ACAO`, `OBSERVACAO`, `ORIENTACAO`) e `texto`. |
 | `PATCH /os/{id}/prazo` | Admin e Técnico vinculado | `prazoPrevisto` no formato `AAAA-MM-DD` e `justificativa`. |
 | `PATCH /os/{id}/status` | Depende da transição, conforme a tabela abaixo. | `status` e os campos da transição. |
