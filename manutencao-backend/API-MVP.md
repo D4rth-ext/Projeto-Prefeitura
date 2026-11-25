@@ -26,7 +26,7 @@ Use Java 21, Maven e um banco PostgreSQL 16 com suporte a ICU. O Flyway aplica a
 | `APP_ADMIN_INICIAL_SENHA` | Senha inicial forte, exigida na criação do primeiro Admin |
 | `PORT` | Padrão `8080` |
 
-Defina as variáveis no ambiente do IntelliJ ou do terminal e execute `mvn spring-boot:run`. A chave externa é obrigatória também no perfil `local`. Consulte `GET /actuator/health` na raiz do servidor. Use credenciais diferentes por ambiente.
+Defina as variáveis no ambiente do IntelliJ ou do terminal e execute `mvn spring-boot:run`. A chave externa é obrigatória também no perfil `local`. O Flyway aplica as migrações disponíveis até a V15 na inicialização. Consulte `GET /actuator/health` na raiz do servidor. Use credenciais diferentes por ambiente.
 
 Em uma base existente, a V11 classifica os cadastros anteriores como `APROVADO` e conserva o campo `ativo`. A aprovação manual vale para novos autocadastros. Revise as contas que já tinham acesso antes de liberar a aplicação. Se a V6 ainda for aplicada, ajuste eventuais colisões de nomes de setores preservando seus IDs. A comparação ignora espaços e maiúsculas.
 
@@ -82,7 +82,7 @@ O backend limita as tentativas de login a 30 e os envios de autocadastro a 5 por
 }
 ```
 
-Categorias `NAO_LIGA`, `LENTO`, `SEM_REDE`, `IMPRESSORA`, `SISTEMA`, `EMAIL` e `OUTRO`. Admin e Atendente incluem `solicitanteId`. Para o Solicitante, a API usa a conta autenticada. `contato` e `backupSolicitado` são obrigatórios; quando `backupSolicitado` é `true`, `escopoBackup` também é obrigatório (até 2000 caracteres). `patrimonioInformado`, `computadorLiga`, `temRede`, `consegueAnyDesk` e `melhorHorario` são opcionais. Respostas rápidas aceitam `SIM`, `NAO` e `NAO_SEI`. O atendimento remoto registra a modalidade, sem coletar dados de acesso remoto.
+Categorias `NAO_LIGA`, `LENTO`, `SEM_REDE`, `IMPRESSORA`, `SISTEMA`, `EMAIL` e `OUTRO`. Admin e Atendente incluem `solicitanteId`. Para o Solicitante, a API usa a conta autenticada. `contato` e `backupSolicitado` são obrigatórios; quando `backupSolicitado` é `true`, `escopoBackup` também é obrigatório (até 2000 caracteres). `patrimonioInformado`, `computadorLiga`, `temRede`, `consegueAnyDesk` e `melhorHorario` são opcionais. Quando `consegueAnyDesk` é `SIM`, informe também `anydeskId` (até 50 caracteres). O sistema guarda somente o ID; nunca envie ou registre senha do AnyDesk. Respostas rápidas aceitam `SIM`, `NAO` e `NAO_SEI`.
 
 - `PATCH /os/{id}/solicitacao` permite ao Solicitante dono da OS, Admin ou Atendente editar a solicitação enquanto ela está `RECEBIDO` e ainda não foi triada. Envie os campos de abertura e a `versao` atual.
 - `PATCH /os/{id}/patrimonio` permite ao Admin ou Técnico vinculado corrigir `patrimonioInformado` durante o atendimento. Envie o valor e a `versao` atual; a correção fica registrada no histórico.

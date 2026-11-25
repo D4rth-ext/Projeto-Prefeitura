@@ -5,6 +5,7 @@ import com.manutencao.sistema.common.exception.RegraNegocioException;
 import com.manutencao.sistema.os.domain.OrdemServico;
 import com.manutencao.sistema.os.domain.ModalidadeOs;
 import com.manutencao.sistema.os.domain.StatusOs;
+import com.manutencao.sistema.os.domain.RespostaRapida;
 import com.manutencao.sistema.os.dto.AberturaOsRequest;
 import com.manutencao.sistema.os.dto.EdicaoSolicitacaoRequest;
 import com.manutencao.sistema.os.dto.OrdemServicoResponse;
@@ -59,8 +60,9 @@ public class OrdemServicoService {
         }
         acesso.conferirVersao(os, request.versao());
         validarPreferenciaBackup(request.backupSolicitado(), request.escopoBackup());
+        validarAnyDeskId(request.consegueAnyDesk(), request.anydeskId());
         os.editarSolicitacao(request.categoria(), request.descricaoProblema(), request.patrimonioInformado(),
-                request.computadorLiga(), request.temRede(), request.consegueAnyDesk(), request.contato(),
+                request.computadorLiga(), request.temRede(), request.consegueAnyDesk(), request.anydeskId(), request.contato(),
                 request.melhorHorario(), request.backupSolicitado(), request.escopoBackup());
         return OrdemServicoResponse.de(osRepository.saveAndFlush(os));
     }
@@ -87,6 +89,7 @@ public class OrdemServicoService {
             throw new RegraNegocioException("Não é possível abrir OS para um setor inativo.");
         }
         validarPreferenciaBackup(request.backupSolicitado(), request.escopoBackup());
+        validarAnyDeskId(request.consegueAnyDesk(), request.anydeskId());
 
         OrdemServico os = new OrdemServico(
                 setor,
@@ -98,7 +101,7 @@ public class OrdemServicoService {
 
         os.preencherAbertura(
                 request.patrimonioInformado(), request.computadorLiga(), request.temRede(),
-                request.consegueAnyDesk(), request.contato(), request.melhorHorario(),
+                request.consegueAnyDesk(), request.anydeskId(), request.contato(), request.melhorHorario(),
                 request.backupSolicitado(), request.escopoBackup()
         );
 
@@ -125,10 +128,17 @@ public class OrdemServicoService {
         OrdemServico os = new OrdemServico(setor, solicitante, solicitante,
                 request.categoria(), request.descricaoProblema());
         validarPreferenciaBackup(request.backupSolicitado(), request.escopoBackup());
+        validarAnyDeskId(request.consegueAnyDesk(), request.anydeskId());
         os.preencherAbertura(request.patrimonioInformado(), request.computadorLiga(),
-                request.temRede(), request.consegueAnyDesk(), request.contato(), request.melhorHorario(),
+                request.temRede(), request.consegueAnyDesk(), request.anydeskId(), request.contato(), request.melhorHorario(),
                 request.backupSolicitado(), request.escopoBackup());
         return OrdemServicoResponse.de(osRepository.save(os));
+    }
+
+    private void validarAnyDeskId(RespostaRapida consegueAnyDesk, String anydeskId) {
+        if (consegueAnyDesk == RespostaRapida.SIM && (anydeskId == null || anydeskId.isBlank())) {
+            throw new RegraNegocioException("Informe o ID do AnyDesk para atendimento remoto.");
+        }
     }
 
     public List<OrdemServicoResponse> listar(String email) {

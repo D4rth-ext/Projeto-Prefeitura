@@ -7,7 +7,7 @@ import CamposChamado from '../components/CamposChamado'
 
 const VAZIO = {
   solicitanteId: '', categoria: '', descricaoProblema: '', patrimonioInformado: '',
-  computadorLiga: '', temRede: '', consegueAnyDesk: '', contato: '', melhorHorario: '',
+  computadorLiga: '', temRede: '', consegueAnyDesk: '', anydeskId: '', contato: '', melhorHorario: '',
   backupSolicitado: '', escopoBackup: ''
 }
 

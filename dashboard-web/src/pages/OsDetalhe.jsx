@@ -297,6 +297,7 @@ export default function OsDetalhe() {
       computadorLiga: os.computadorLiga || '',
       temRede: os.temRede || '',
       consegueAnyDesk: os.consegueAnyDesk || '',
+      anydeskId: os.anydeskId || '',
       contato: os.contato || '',
       melhorHorario: os.melhorHorario || '',
       backupSolicitado: os.backupSolicitado == null ? '' : os.backupSolicitado ? 'SIM' : 'NAO',
@@ -411,6 +412,7 @@ export default function OsDetalhe() {
               <Linha rotuloCampo="Computador liga?">{os.computadorLiga && RESPOSTAS[os.computadorLiga]}</Linha>
               <Linha rotuloCampo="Tem rede?">{os.temRede && RESPOSTAS[os.temRede]}</Linha>
               <Linha rotuloCampo="Consegue usar AnyDesk?">{os.consegueAnyDesk && RESPOSTAS[os.consegueAnyDesk]}</Linha>
+              {os.anydeskId && <Linha rotuloCampo="ID do AnyDesk">{os.anydeskId}</Linha>}
             </div>
             </>
             )}

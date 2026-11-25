@@ -16,7 +16,7 @@ function SelectResposta({ label, valor, onChange }) {
 
 // Campos do chamado, usados na abertura (NovaOS) e na edição (OsDetalhe).
 // form: { categoria, descricaoProblema, patrimonioInformado, computadorLiga,
-//         temRede, consegueAnyDesk, contato, melhorHorario }
+//         temRede, consegueAnyDesk, anydeskId, contato, melhorHorario }
 export default function CamposChamado({ form, campo }) {
   return (
     <>
@@ -71,8 +71,18 @@ export default function CamposChamado({ form, campo }) {
       <div className="form-columns">
         <SelectResposta label="O computador liga?" valor={form.computadorLiga} onChange={(v) => campo('computadorLiga', v)} />
         <SelectResposta label="Tem rede?" valor={form.temRede} onChange={(v) => campo('temRede', v)} />
-        <SelectResposta label="Consegue usar AnyDesk?" valor={form.consegueAnyDesk} onChange={(v) => campo('consegueAnyDesk', v)} />
+        <SelectResposta label="Consegue usar AnyDesk?" valor={form.consegueAnyDesk} onChange={(v) => {
+          campo('consegueAnyDesk', v)
+          if (v !== 'SIM') campo('anydeskId', '')
+        }} />
       </div>
+
+      {form.consegueAnyDesk === 'SIM' && <div className="field">
+        <label htmlFor="anydesk-id">ID do AnyDesk</label>
+        <input id="anydesk-id" type="text" maxLength={50} autoComplete="off" value={form.anydeskId || ''}
+          onChange={(e) => campo('anydeskId', e.target.value)} required />
+        <small className="muted">Informe somente o ID do AnyDesk. Não envie a senha.</small>
+      </div>}
 
       <div className="form-columns">
         <div className="field">

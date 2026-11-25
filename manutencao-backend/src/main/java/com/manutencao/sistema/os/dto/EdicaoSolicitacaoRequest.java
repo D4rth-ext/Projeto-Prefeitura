@@ -14,6 +14,7 @@ public record EdicaoSolicitacaoRequest(
         RespostaRapida computadorLiga,
         RespostaRapida temRede,
         RespostaRapida consegueAnyDesk,
+        @Size(max = 50, message = "O ID do AnyDesk deve ter até 50 caracteres.") String anydeskId,
         @NotBlank(message = "O telefone para contato é obrigatório.") @Size(max = 60) String contato,
         @Size(max = 100) String melhorHorario,
         @NotNull(message = "Informe se deseja solicitar backup.") Boolean backupSolicitado,

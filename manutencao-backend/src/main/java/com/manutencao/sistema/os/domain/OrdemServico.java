@@ -103,6 +103,9 @@ public class OrdemServico {
     @Column(name = "consegue_anydesk", length = 10)
     private RespostaRapida consegueAnyDesk;
 
+    @Column(name = "anydesk_id", length = 50)
+    private String anydeskId;
+
     @Column(length = 60)
     private String contato;
 
@@ -167,13 +170,14 @@ public class OrdemServico {
 
     public void preencherAbertura(
             String patrimonioInformado, RespostaRapida computadorLiga,
-            RespostaRapida temRede, RespostaRapida consegueAnyDesk,
+            RespostaRapida temRede, RespostaRapida consegueAnyDesk, String anydeskId,
             String contato, String melhorHorario, Boolean backupSolicitado, String escopoBackup
     ) {
         this.patrimonioInformado = normalizar(patrimonioInformado);
         this.computadorLiga = computadorLiga;
         this.temRede = temRede;
         this.consegueAnyDesk = consegueAnyDesk;
+        this.anydeskId = consegueAnyDesk == RespostaRapida.SIM ? normalizar(anydeskId) : null;
         this.contato = normalizar(contato);
         this.melhorHorario = normalizar(melhorHorario);
         this.backupSolicitado = backupSolicitado;
@@ -182,11 +186,11 @@ public class OrdemServico {
 
     public void editarSolicitacao(CategoriaOs categoria, String descricaoProblema,
             String patrimonioInformado, RespostaRapida computadorLiga, RespostaRapida temRede,
-            RespostaRapida consegueAnyDesk, String contato, String melhorHorario,
+            RespostaRapida consegueAnyDesk, String anydeskId, String contato, String melhorHorario,
             Boolean backupSolicitado, String escopoBackup) {
         this.categoria = categoria;
         this.descricaoProblema = descricaoProblema.trim();
-        preencherAbertura(patrimonioInformado, computadorLiga, temRede, consegueAnyDesk, contato, melhorHorario,
+        preencherAbertura(patrimonioInformado, computadorLiga, temRede, consegueAnyDesk, anydeskId, contato, melhorHorario,
                 backupSolicitado, escopoBackup);
         registrarAlteracao();
     }
@@ -342,6 +346,10 @@ public class OrdemServico {
 
     public RespostaRapida getConsegueAnyDesk() {
         return consegueAnyDesk;
+    }
+
+    public String getAnydeskId() {
+        return anydeskId;
     }
 
     public String getContato() {

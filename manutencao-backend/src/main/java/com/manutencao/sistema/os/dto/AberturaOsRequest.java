@@ -21,6 +21,7 @@ public record AberturaOsRequest(
         RespostaRapida computadorLiga,
         RespostaRapida temRede,
         RespostaRapida consegueAnyDesk,
+        @Size(max = 50, message = "O ID do AnyDesk deve ter até 50 caracteres.") String anydeskId,
         @NotBlank(message = "O telefone para contato é obrigatório.")
         @Size(max = 60) String contato,
         @Size(max = 100) String melhorHorario,
@@ -28,6 +29,6 @@ public record AberturaOsRequest(
         @Size(max = 2000, message = "A especificação do backup deve ter até 2000 caracteres.") String escopoBackup
 ) {
     public AberturaOsRequest(CategoriaOs categoria, String descricaoProblema, Long solicitanteId) {
-        this(categoria, descricaoProblema, solicitanteId, null, null, null, null, null, null, false, null);
+        this(categoria, descricaoProblema, solicitanteId, null, null, null, null, null, null, null, false, null);
     }
 }
